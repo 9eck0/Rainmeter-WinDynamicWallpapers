@@ -108,10 +108,7 @@
     </Compile>
     <Compile Include="Win32\CLSCTX.cs" />
     <Compile Include="Win32\COLORREF.cs" />
-    <Compile Include="Win32\DesktopWallpaper.cs" />
-    <Compile Include="Win32\DESKTOP_SLIDESHOW_DIRECTION.cs" />
-    <Compile Include="Win32\DESKTOP_SLIDESHOW_STATE.cs" />
-    <Compile Include="Win32\DESKTOP_WALLPAPER_POSITION.cs" />
+    <Compile Include="DesktopWallpaper.cs" />
     <Compile Include="Win32\IDesktopWallpaper.cs" />
     <Compile Include="Win32\IShellItem.cs" />
     <Compile Include="Win32\IShellItemArray.cs" />
@@ -119,6 +116,7 @@
     <Compile Include="Win32\RECT.cs" />
     <Compile Include="Win32\SFGAOF.cs" />
     <Compile Include="Win32\SIGDN.cs" />
+    <Compile Include="Win32\Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
