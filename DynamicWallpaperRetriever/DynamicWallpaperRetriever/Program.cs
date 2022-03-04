@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CommandLine;
+using System;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -9,6 +10,9 @@ namespace DynamicWallpaperRetriever
 {
     class Program
     {
+
+        static DesktopWallpaper wallpaperEngine = new DesktopWallpaper();
+
         private static string WorkingDir;
         //private static Uri IMERG;
         // This Uri links to the website hosting a dynamic loop of images to be retrieved, not the images themselves.
@@ -30,6 +34,11 @@ namespace DynamicWallpaperRetriever
 
             // Hide console when run
             //ShowWindow(handle, SW_HIDE);
+
+            Parser.Default.ParseArguments<CommandLineOptions>(args).MapResult(options => Run(options), err =>
+            {
+
+            });
 
             TestIDesktopWallpaper();
 
@@ -56,95 +65,52 @@ namespace DynamicWallpaperRetriever
                 //Console.ReadLine();
 
                 // Himawari does not have an uniform URL for its latest imagery. Thus, we need to hard-code its URL constructor.
+
+                WallpaperDownloader downloader = new WallpaperDownloader();
+                downloader.DownloadCompleted += DownloadClient_DownloadFileFinished;
+
                 if (args[0] == "Himawari")
                 {
-                    DownloadAsync(new Uri(CurrentHimawariUrl()), args[1]);
+                    //downloader.DownloadAsync(new Uri(CurrentHimawariUrl()), args[1]);
                 }
                 else
                 {
-                    DownloadAsync(new Uri(args[0]), args[1]);
+                    downloader.DownloadAsync(new Uri(args[0]), args[1]);
                 }
+
+                string wallpaperPath = Path.Combine(Environment.CurrentDirectory, "hima.jpg");
+                Console.WriteLine(wallpaperPath);
+
+                string monitorID = wallpaperEngine.GetMonitorDevicePathAt(1);
+                wallpaperEngine.SetWallpaper(monitorID, wallpaperPath);
             }
 
             
         }
 
-        private static void TestIDesktopWallpaper()
+        private static void Run(CommandLineOptions runOptions)
         {
-            DesktopWallpaper wallpaperEngine = new DesktopWallpaper();
-            uint monitorCount = wallpaperEngine.GetMonitorDevicePathCount();
 
-            for (uint i = 0; i < monitorCount; i++)
-            {
-                string monitorID = wallpaperEngine.GetMonitorDevicePathAt(i).ToString();
-                Console.WriteLine("GetMonitorDevicePathAt ("+i+"): " + monitorID.ToString());
-            }
-
-            //Console.WriteLine(wallpaperEngine.GetWallpaper(null));
-            //wallpaperEngine.AdvanceSlideshow();
-            //wallpaperEngine.SetSlideshow(@"C:\Users\beaul\Pictures\Wallpapers\Space");
-            //wallpaperEngine.SetSlideshow("testfail");
-            //wallpaperEngine.EnableWallpaper();
         }
 
-        const string userAgent = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36";
-
         /// <summary>
-        /// Downloads a file from the internet by first downloading it to a temporary file, then renaming it to the desired file name.
+        /// Obtains the slideshow preset from current Windows wallpaper API configuration.
         /// </summary>
-        /// <param name="Path">The URL path to the file.</param>
-        /// <param name="FileName">The complete path for the desired file</param>
-        /// <param name="Timeout">Optional: Specify a custom timeout, in milliseconds, for high-ping resource access</param>
-        static void DownloadAsync(Uri Path, string fileName, int timeout = 30*1000)
+        /// <returns>A <see cref="SlideshowPreset"/> based on currently configured Windows slideshow,
+        /// or <c>null</c> if no slideshow is configured.</returns>
+        public static SlideshowPreset FromWindowsSlideshow(string presetName = null)
         {
-            string tempName = fileName + ".temp";
-            if (File.Exists(tempName))
+            string slideshowFolder = wallpaperEngine.GetSlideshowFolder();
+
+            if (slideshowFolder == null)
             {
-                File.Delete(tempName);
+                return null;
             }
 
-            try
-            {
-                using (MyWebClient client = new MyWebClient())
-                {
-                    client.DefaultTimeout = timeout;
-                    //For some resources, a 403: Forbidden error can be thrown if no user agent is provided.
-                    client.Headers.Add("User-Agent: Other");
-                    client.DownloadFileCompleted += new System.ComponentModel.AsyncCompletedEventHandler(DownloadClient_DownloadFileFinished);
-                    debugWebFilePath = Path.ToString();
-
-                    // Uncomment this section to download in the main thread
-                    /*client.DownloadFile(Path, tempName);*/
-
-                    // Uncomment this section to download asynchronously
-                    /*client.DownloadFileAsync(Path, tempName);*/
-
-                    // Uncomment this section to download asynchronously using a task object
-                    var asyncDownload = client.DownloadFileTaskAsync(Path, tempName);
-                    asyncDownload.Wait(timeout + 5000);
-                    // Waiting
-                    while (asyncDownload.Status == System.Threading.Tasks.TaskStatus.Running)
-                    {
-                        // Waiting for completion
-                    }
-                }
-
-                // Rename temp file to desired file name
-                if (File.Exists(fileName))
-                {
-                    File.Delete(fileName);
-                }
-                File.Move(tempName, fileName);
-            }
-            catch (Exception)
-            {
-                Console.WriteLine("Cannot download resource at: " + Path.ToString());
-
-                if (File.Exists(tempName))
-                {
-                    File.Delete(tempName);
-                }
-            }
+            presetName = presetName == null ? "Windows slideshow" : presetName;
+            bool shuffle = wallpaperEngine.IsSlideshowShufflingEnabled();
+            ShuffleType shuffleType = shuffle ? ShuffleType.Nonrepeating : ShuffleType.Ordered;
+            return new SlideshowPreset(presetName, slideshowFolder, null, false, shuffleType);
         }
 
         private static string debugWebFilePath;
@@ -164,6 +130,7 @@ namespace DynamicWallpaperRetriever
             else
             {
                 Console.WriteLine("Successfully downloaded resource at: " + debugWebFilePath);
+                wallpaperEngine.SetSlideshow(Environment.CurrentDirectory);
             }
         }
 
@@ -220,31 +187,6 @@ namespace DynamicWallpaperRetriever
                     "00"
             };
             return String.Format(baseUrl, UtcTimeFormat[0], UtcTimeFormat[1], UtcTimeFormat[2], UtcTimeFormat[3], UtcTimeFormat[4]);
-        }
-    }
-
-    class MyWebClient : WebClient
-    {
-        /// <summary>
-        /// A deafult timeout of 30 seconds to allow for background tasks handshaking on a high latency connection.
-        /// </summary>
-        public int DefaultTimeout = 30 * 1000;
-
-        protected override WebRequest GetWebRequest(Uri uri)
-        {
-            return GetWebRequest(uri, DefaultTimeout);
-        }
-
-        protected WebRequest GetWebRequest(Uri uri, int timeout)
-        {
-            if (timeout <= 0)
-            {
-                throw new ArgumentOutOfRangeException("timeout", "WebRequest Timeout cannot be zero or negative");
-            }
-
-            WebRequest w = base.GetWebRequest(uri);
-            w.Timeout = timeout;
-            return w;
         }
     }
 }

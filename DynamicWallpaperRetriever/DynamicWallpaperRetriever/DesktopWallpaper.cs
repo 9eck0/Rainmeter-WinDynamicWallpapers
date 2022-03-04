@@ -1,11 +1,8 @@
 ﻿using DynamicWallpaperRetriever.Win32;
-using Microsoft.Win32;
-//using Microsoft.Windows.CsWin32;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
-using System.Text;
 
 namespace DynamicWallpaperRetriever
 {
@@ -170,6 +167,7 @@ namespace DynamicWallpaperRetriever
         /// <param name="monitorID">The ID of the monitor. This value can be obtained through GetMonitorDevicePathAt. Set this value to null to set the wallpaper image on all monitors.</param>
         /// <param name="wallpaper">The full path of the wallpaper image file.</param>
         /// <exception cref="ArgumentException">The ID supplied in monitorID cannot be found.</exception>
+        /// <exception cref="ArgumentException">The wallpaper path does not point to a valid image file.</exception>
         /// <exception cref="COMException">Code S_FALSE is thrown when trying to access a monitor not currently attached to the system.</exception>
         public void SetWallpaper(string monitorID, string wallpaper)
         {
@@ -256,7 +254,7 @@ namespace DynamicWallpaperRetriever
         /// Specifies the images to use for the desktop wallpaper slideshow.
         /// </summary>
         /// <param name="directory">The full path to the directory containing the slideshow images.</param>
-        /// <exception cref="System.IO.FileNotFoundException">If the provided slideshow </exception>
+        /// <exception cref="System.IO.FileNotFoundException">If the provided slideshow folder is invalid.</exception>
         public void SetSlideshow(string directory)
         {
             // possible exceptions: not a valid path format, not an existing folder
@@ -310,6 +308,33 @@ namespace DynamicWallpaperRetriever
                 }
             }
             return results.ToArray();
+        }
+
+        /// <summary>
+        /// Gets the path to the directory in which the active slideshow images are stored.
+        /// </summary>
+        /// <returns>The path to the active slideshow, or <c>null</c> if no slideshow is configured.</returns>
+        public string GetSlideshowFolder()
+        {
+            if (!GetSlideshowStatus().HasFlag(DESKTOP_SLIDESHOW_STATE.DSS_SLIDESHOW))
+            {
+                return null;
+            }
+
+            string[] slideshowItems = GetSlideshow();
+
+            if (slideshowItems.Length == 0)
+            {
+                return null;
+            }
+            else if (Utils.IsDirectoryPath(slideshowItems[0]))
+            {
+                return slideshowItems[0];
+            }
+            else
+            {
+                return System.IO.Path.GetDirectoryName(slideshowItems[0]);
+            }
         }
 
         #endregion

@@ -1,6 +1,6 @@
 ﻿using System;
+using System.IO;
 using System.Runtime.InteropServices;
-using System.Runtime.InteropServices.ComTypes;
 using System.Text;
 
 namespace DynamicWallpaperRetriever.Win32
@@ -75,6 +75,14 @@ namespace DynamicWallpaperRetriever.Win32
             }
 
             return results;
+        }
+
+        public static bool IsDirectoryPath(string path)
+        {
+            // get the file attributes for file or directory
+            FileAttributes attr = File.GetAttributes(@"c:\Temp");
+
+            return attr.HasFlag(FileAttributes.Directory);
         }
     }
 }

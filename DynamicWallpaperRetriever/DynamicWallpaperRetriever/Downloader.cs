@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.IO;
-using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
@@ -12,13 +12,19 @@ namespace DynamicWallpaperRetriever
     {
         private const string userAgent = @"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36";
 
+        private CustomTimeoutWebClient client;
+        private string lastDownloadUrl;
+
+        public int DownloadProgressPercentage { get; private set; } = -1;
+        public bool Active { get; private set; } = false;
+
         /// <summary>
         /// Downloads a file from the internet by first downloading it to a temporary file, then renaming it to the desired file name.
         /// </summary>
         /// <param name="Path">The URL path to the file.</param>
         /// <param name="FileName">The complete path for the desired file</param>
         /// <param name="Timeout">Optional: Specify a custom timeout, in milliseconds, for high-ping resource access</param>
-        async void DownloadAsync(Uri Path, string fileName, int timeout = 30 * 1000)
+        public async void DownloadAsync(Uri Path, string fileName, int timeout = 30 * 1000)
         {
             string tempName = fileName + ".temp";
             if (File.Exists(tempName))
@@ -28,37 +34,34 @@ namespace DynamicWallpaperRetriever
 
             try
             {
-                using (CustomTimeoutWebClient client = new CustomTimeoutWebClient())
+                using (client = new CustomTimeoutWebClient())
                 {
-                    async Task downloadFileAsync()
-                    {
-                        client.DefaultTimeout = timeout;
+                    client.DefaultTimeout = timeout;
 
-                        //For some resources, a 403: Forbidden error can be thrown if no user agent is provided.
-                        client.Headers.Add("User-Agent: " + userAgent);
+                    //For some resources, a 403: Forbidden error can be thrown if no user agent is provided.
+                    client.Headers.Add("User-Agent: " + userAgent);
 
-                        client.DownloadFileCompleted += new System.ComponentModel.AsyncCompletedEventHandler(DownloadClient_DownloadFileFinished);
+                    client.DownloadFileCompleted += new AsyncCompletedEventHandler(DownloadClient_DownloadFileFinished);
+                    client.DownloadFileCompleted += DownloadCompleted;
+                    client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(DownloadClient_DownloadProgressChanged);
+                    client.DownloadProgressChanged += DownloadProgressChanged;
 
-                        lastDownloadUrl = Path.ToString();
+                    lastDownloadUrl = Path.ToString();
 
-                        // Uncomment this section to download in the main thread
-                        /*client.DownloadFile(Path, tempName);*/
+                    Active = true;
 
-                        // Uncomment this section to download asynchronously
-                        /*client.DownloadFileAsync(Path, tempName);*/
+                    // Uncomment this section to download in the main thread
+                    /*client.DownloadFile(Path, tempName);*/
 
-                        // Uncomment this section to download asynchronously using a task object
-                        var asyncDownload = client.DownloadFileTaskAsync(Path, tempName);
-                        asyncDownload.Wait(timeout + 5000);
-                        // Waiting
-                        while (asyncDownload.Status == TaskStatus.Running)
-                        {
-                            // Waiting for completion
-                        }
-                    }
+                    // Uncomment this section to download asynchronously
+                    /*client.DownloadFileAsync(Path, tempName);*/
 
-                    Task downloadFile = downloadFileAsync();
-                    await downloadFile;
+                    // Uncomment this section to download asynchronously using a task object
+                    //var asyncDownload = client.DownloadFileTaskAsync(Path, tempName);
+                    // Waiting for completion
+                    //asyncDownload.Wait(client.DefaultTimeout);
+
+                    await client.DownloadFileTaskAsync(Path, tempName);
                 }
 
                 // Rename temp file to desired file name
@@ -79,9 +82,12 @@ namespace DynamicWallpaperRetriever
             }
         }
 
-        private string lastDownloadUrl;
+        private void DownloadClient_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        {
+            DownloadProgressPercentage = e.ProgressPercentage;
+        }
 
-        void DownloadClient_DownloadFileFinished(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
+        void DownloadClient_DownloadFileFinished(object sender, AsyncCompletedEventArgs e)
         {
             if (e.Cancelled)
             {
@@ -97,6 +103,8 @@ namespace DynamicWallpaperRetriever
             {
                 Console.WriteLine("Successfully downloaded resource at: " + lastDownloadUrl);
             }
+
+            Active = false;
 
             // invoke event
             //DownloadCompleted.BeginInvoke(this, e);
