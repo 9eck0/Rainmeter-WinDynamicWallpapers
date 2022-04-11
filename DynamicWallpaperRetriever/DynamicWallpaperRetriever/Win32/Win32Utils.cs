@@ -5,7 +5,7 @@ using System.Text;
 
 namespace DynamicWallpaperRetriever.Win32
 {
-    public static class Utils
+    public static class Win32Utils
     {
         #region COM IMPORTS
 

@@ -1,5 +1,7 @@
 ﻿using CommandLine;
+using CommandLine.Text;
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Runtime.InteropServices;
@@ -11,9 +13,10 @@ namespace DynamicWallpaperRetriever
     class Program
     {
 
-        static DesktopWallpaper wallpaperEngine = new DesktopWallpaper();
+        static WallpaperEngine wallpaperEngine = new WallpaperEngine();
 
-        private static string WorkingDir;
+        public static string WorkingDir = Directory.GetCurrentDirectory();
+
         //private static Uri IMERG;
         // This Uri links to the website hosting a dynamic loop of images to be retrieved, not the images themselves.
         // Regex or another search algorithm is needed in order to retrieve files from the website's HTML source.
@@ -30,21 +33,22 @@ namespace DynamicWallpaperRetriever
 
         static void Main(string[] args)
         {
-            //var handle = GetConsoleWindow();
+            // Apply localization based on current system culture
+            Localization.ApplyLocalization(Localization.GetSystemCulture().Name);
 
-            // Hide console when run
-            //ShowWindow(handle, SW_HIDE);
-
-            Parser.Default.ParseArguments<CommandLineOptions>(args).MapResult(options => Run(options), err =>
+            if (args.Length == 0)
             {
 
-            });
-
-            TestIDesktopWallpaper();
-
-            if (args.Length > 1)
+            }
+            else if (args.Length > 0)
             {
-                WorkingDir = Directory.GetCurrentDirectory();
+                Parser.Default.ParseArguments<CommandLineOptions.GetWallpaperOptions,
+                    CommandLineOptions.SetWallpaperOptions,
+                    CommandLineOptions.SlideshowOptions>(args)
+                    .WithParsed<CommandLineOptions.GetWallpaperOptions>(options => GetWallpaper(options))
+                    .WithParsed<CommandLineOptions.SetWallpaperOptions>(options => SetWallpaper(options))
+                    .WithParsed<CommandLineOptions.SlideshowOptions>(options => ManipulateSlideshows(options))
+                    .WithNotParsed(errors => FaultyCommand(errors));
 
                 // GOES East
                 //GoesEastSite = new Uri("https://www.star.nesdis.noaa.gov/GOES/FullDisk_band.php?sat=G16&band=GEOCOLOR&length=96");
@@ -66,71 +70,179 @@ namespace DynamicWallpaperRetriever
 
                 // Himawari does not have an uniform URL for its latest imagery. Thus, we need to hard-code its URL constructor.
 
-                WallpaperDownloader downloader = new WallpaperDownloader();
-                downloader.DownloadCompleted += DownloadClient_DownloadFileFinished;
-
-                if (args[0] == "Himawari")
-                {
-                    //downloader.DownloadAsync(new Uri(CurrentHimawariUrl()), args[1]);
-                }
-                else
-                {
-                    downloader.DownloadAsync(new Uri(args[0]), args[1]);
-                }
-
-                string wallpaperPath = Path.Combine(Environment.CurrentDirectory, "hima.jpg");
-                Console.WriteLine(wallpaperPath);
-
-                string monitorID = wallpaperEngine.GetMonitorDevicePathAt(1);
-                wallpaperEngine.SetWallpaper(monitorID, wallpaperPath);
+                //string wallpaperPath = Path.Combine(Environment.CurrentDirectory, "hima.jpg");
             }
 
             
         }
 
-        private static void Run(CommandLineOptions runOptions)
+        private static void GetWallpaper(CommandLineOptions.GetWallpaperOptions options)
         {
 
         }
 
-        /// <summary>
-        /// Obtains the slideshow preset from current Windows wallpaper API configuration.
-        /// </summary>
-        /// <returns>A <see cref="SlideshowPreset"/> based on currently configured Windows slideshow,
-        /// or <c>null</c> if no slideshow is configured.</returns>
-        public static SlideshowPreset FromWindowsSlideshow(string presetName = null)
+        private static void SetWallpaper(CommandLineOptions.SetWallpaperOptions options)
         {
-            string slideshowFolder = wallpaperEngine.GetSlideshowFolder();
+            // URL conversion
 
-            if (slideshowFolder == null)
+            if (options.Url == null || options.Url.Trim() == "")
             {
-                return null;
+                FaultyCommand(Properties.strings.ErrorDownloadPrefix + Properties.strings.ErrorDownloadUrlNull);
+            }
+            UriBuilder uriBuilder = new UriBuilder(options.Url);
+
+            // Obtain the file from the URL
+
+            FileInfo wallpaperFile;
+            if (options.IsLocal)
+            {
+                wallpaperFile = new FileInfo(uriBuilder.Path);
+            }
+            else
+            {
+                // Perform check of savepath availability
+
+                string cleanSavePath;
+                try
+                {
+                    cleanSavePath = Path.GetFullPath(options.SavePath);
+                }
+                catch (Exception)
+                {
+                    FaultyCommand(Properties.strings.ErrorDownloadPrefix + Properties.strings.ErrorDownloadUrlFormat);
+                    return;
+                }
+
+                if (Directory.Exists(cleanSavePath))
+                {
+                    FaultyCommand(Properties.strings.ErrorDownloadPrefix + Properties.strings.ErrorDownloadFolderPath);
+                    return;
+                }
+
+                // Downloads the file to the specified location
+
+                try
+                {
+                    DownloadResource(uriBuilder.Uri, cleanSavePath);
+                }
+                catch (Exception ex)
+                {
+                    FaultyCommand(Properties.strings.ErrorDownloadPrefix + ex.Message);
+                    return;
+                }
+
+                wallpaperFile = new FileInfo(cleanSavePath);
             }
 
-            presetName = presetName == null ? "Windows slideshow" : presetName;
-            bool shuffle = wallpaperEngine.IsSlideshowShufflingEnabled();
-            ShuffleType shuffleType = shuffle ? ShuffleType.Nonrepeating : ShuffleType.Ordered;
-            return new SlideshowPreset(presetName, slideshowFolder, null, false, shuffleType);
+            // Apply the wallpaper
+
+            if (options.Monitor >= 0)
+            {
+                string monitorID = wallpaperEngine.GetEngine().GetMonitorDevicePathAt((uint)options.Monitor);
+                wallpaperEngine.GetEngine().SetWallpaper(monitorID, wallpaperFile.FullName);
+            }
+            else
+            {
+                wallpaperEngine.SetWallpaper(wallpaperFile.FullName);
+            }
+
+            if (options.Position >= 0 && options.Position <= 5)
+            {
+                Win32.DESKTOP_WALLPAPER_POSITION wallpaperPositioning = (Win32.DESKTOP_WALLPAPER_POSITION) options.Position;
+                wallpaperEngine.GetEngine().SetPosition(wallpaperPositioning);
+            }
+
+            if (options.BackgroundColor != null)
+            {
+                try
+                {
+                    wallpaperEngine.SetBackgroundColor(options.BackgroundColor);
+                }
+                catch (ArgumentException)
+                {
+                    FaultyCommand(Properties.strings.ErrorSetBackgroundColorPrefix + Properties.strings.ErrorHtmlColorCodeFormat);
+                    return;
+                }
+                /*catch (Exception ex)
+                {
+                    Console.Error.WriteLine(Properties.strings.ErrorSetBackgroundColorPrefix + ex.Message);
+                    Console.Error.WriteLine(ex.StackTrace);
+                }*/
+            }
         }
 
-        private static string debugWebFilePath;
+        private static void ManipulateSlideshows(CommandLineOptions.SlideshowOptions options)
+        {
+
+        }
+
+        private static int FaultyCommand(IEnumerable<Error> errors)
+        {
+            SentenceBuilder errorParser = SentenceBuilder.Create();
+            foreach (Error error in errors)
+            {
+                if (error is HelpVerbRequestedError)
+                {
+                    // Explicit request of help text, no need to take care of this error
+                    continue;
+                }
+                try
+                {
+                    string errorMsg = errorParser.FormatError(error);
+                    if (error.StopsProcessing)
+                    {
+                        Console.Error.WriteLine(Properties.strings.FaultyCommandErrorPrefix + errorMsg);
+                    }
+                    else
+                    {
+                        Console.Error.WriteLine(Properties.strings.FaultyCommandWarningPrefix + errorMsg);
+                    }
+                }
+                catch (InvalidOperationException)
+                {
+                    Console.Error.WriteLine(error);
+                }
+            }
+            return 1;
+        }
+
+        private static int FaultyCommand(String message)
+        {
+            Console.Error.WriteLine(message);
+            
+            return 1;
+        }
+
+        private static Uri lastDownloadUri;
+
+        private static void DownloadResource(Uri url, string savepath)
+        {
+            // Setup
+            WallpaperDownloader downloader = new WallpaperDownloader();
+            downloader.DownloadCompleted += DownloadClient_DownloadFileFinished;
+
+            // Download
+            lastDownloadUri = url;
+            downloader.Download(url, savepath);
+        }
 
         static void DownloadClient_DownloadFileFinished(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
         {
             if (e.Cancelled)
             {
-                Console.WriteLine("Download cancelled for resource at: " + debugWebFilePath);
+                Console.WriteLine("Download cancelled for resource at: " + lastDownloadUri);
             }
             else if (e.Error != null)
             {
-                Console.WriteLine("Download failed for resource at: " + debugWebFilePath);
+                Console.WriteLine(Properties.strings.ErrorDownloadPrefix + e.Error.Message);
                 Console.WriteLine(e.Error.Message);
                 Console.WriteLine(e.Error.StackTrace);
             }
             else
             {
-                Console.WriteLine("Successfully downloaded resource at: " + debugWebFilePath);
-                wallpaperEngine.SetSlideshow(Environment.CurrentDirectory);
+                // TODO download finished handler
+                //Console.WriteLine("Successfully downloaded resource at: " + lastDownloadUri);
+                wallpaperEngine.GetEngine().SetSlideshow(Environment.CurrentDirectory);
             }
         }
 

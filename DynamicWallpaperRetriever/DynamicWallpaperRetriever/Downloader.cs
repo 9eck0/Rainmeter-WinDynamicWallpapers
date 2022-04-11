@@ -18,13 +18,19 @@ namespace DynamicWallpaperRetriever
         public int DownloadProgressPercentage { get; private set; } = -1;
         public bool Active { get; private set; } = false;
 
+        public void Download(Uri path, string fileName, int timeout = 30*1000)
+        {
+            var downloadTask = DownloadAsync(path, fileName, timeout);
+            downloadTask.Wait();
+        }
+
         /// <summary>
         /// Downloads a file from the internet by first downloading it to a temporary file, then renaming it to the desired file name.
         /// </summary>
         /// <param name="Path">The URL path to the file.</param>
         /// <param name="FileName">The complete path for the desired file</param>
         /// <param name="Timeout">Optional: Specify a custom timeout, in milliseconds, for high-ping resource access</param>
-        public async void DownloadAsync(Uri Path, string fileName, int timeout = 30 * 1000)
+        public async Task DownloadAsync(Uri Path, string fileName, int timeout = 30 * 1000)
         {
             string tempName = fileName + ".temp";
             if (File.Exists(tempName))

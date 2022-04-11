@@ -1,14 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.Serialization;
-using System.Text;
-using System.Threading.Tasks;
 using System.Xml.Serialization;
 
 namespace DynamicWallpaperRetriever
 {
+    /// <summary>
+    /// Defines the type of progression pattern for selecting wallpaper images in a slideshow.
+    /// </summary>
     [DataContract(Name = "EnumShuffleType")]
     public enum ShuffleType
     {
@@ -32,6 +34,28 @@ namespace DynamicWallpaperRetriever
         Random
     }
 
+    [DataContract(Name = "EnumMonitorProgression")]
+    public enum MonitorProgression
+    {
+        /// <summary>
+        /// Sets all configured monitors to the same image.
+        /// </summary>
+        [EnumMember(Value = "AllMonitors")]
+        All,
+
+        /// <summary>
+        /// Perform an ordered alternation between active monitors.
+        /// </summary>
+        [EnumMember(Value = "Alternating")]
+        Alternating,
+
+        /// <summary>
+        /// Selects a single random monitor for the next image to be displayed.
+        /// </summary>
+        [EnumMember(Value = "Random")]
+        Random
+    }
+
     /// <summary>
     /// A slideshow preset for this application.
     /// </summary>
@@ -41,10 +65,18 @@ namespace DynamicWallpaperRetriever
     {
         #region Fields & Properties
 
+        private static DesktopWallpaper _wallpaperEngine = new DesktopWallpaper();
+
+        /// <summary>
+        /// Gets or sets whether this slideshow preset is enabled.
+        /// A disabled preset will not be operated on by WallpaperEngine.
+        /// </summary>
+        public bool Enabled { get; set; }
+
         /// <summary>
         /// The unique name of this preset.
         /// </summary>
-        public string PresetName { get; set; }
+        public string Name { get; set; }
 
         /// <summary>
         /// The directory of the slideshow.
@@ -55,6 +87,11 @@ namespace DynamicWallpaperRetriever
         /// Whether to recursively search through subfolders for image files.
         /// </summary>
         public bool IncludeSubFolders { get; set; }
+
+        /// <summary>
+        /// The solid color of the background to be shown where the wallpaper pictures don't cover.
+        /// </summary>
+        public Color BackgroundColor { get; set; }
 
         /// <summary>
         /// A CSV formatted list of monitors on which to set the slideshow.
@@ -72,39 +109,59 @@ namespace DynamicWallpaperRetriever
         /// The ordered list of image names already shuffled through.
         /// </summary>
         /// <remarks>Affects nonrepeating shuffling only.</remarks>
-        public List<string> ShuffledImages { get; set; } = new List<string>();
+        public List<string> ShuffledImages { get; private set; } = new List<string>();
 
         /// <summary>
         /// The absolute path of the image currently on.
         /// </summary>
         /// <remarks>Affects ordered shuffling only.</remarks>
-        public string CurrentImage { get; set; } = null;
+        public string CurrentImage { get; private set; } = null;
 
         #endregion
 
         #region Constructors
 
         /// <summary>
-        /// Constructs a new slideshow configuration.
+        /// Constructs a new slideshow configuration with current background color.
         /// </summary>
         /// <param name="presetName">An unique name for this preset.</param>
         /// <param name="slideshowFolder">The folder in which the slideshow images are stored.</param>
         /// <param name="monitorIDs">The IDs of the monitors on which the slideshow will be applied. Set to <c>null</c> to target all monitors.</param>
         /// <param name="includeSubFolders">Whether to recursively list image files from subfolders.</param>
         /// <param name="shuffleType">The type of shuffling to perform.</param>
-        public SlideshowPreset(string presetName, string slideshowFolder, string[] monitorIDs = null, bool includeSubFolders = false, ShuffleType shuffleType = ShuffleType.Ordered)
+        public SlideshowPreset(string presetName, string slideshowFolder, bool includeSubFolders = false, string[] monitorIDs = null, ShuffleType shuffleType = ShuffleType.Ordered) :
+            this(presetName, _wallpaperEngine.GetBackgroundColor(), slideshowFolder, includeSubFolders, monitorIDs, shuffleType)
         {
-            PresetName = presetName;
+
+        }
+
+        /// <summary>
+        /// Constructs a new slideshow configuration.
+        /// </summary>
+        /// <param name="presetName">An unique name for this preset.</param>
+        /// <param name="backgroundColor">The solid color of the desktop's background, visible in areas without wallpaper coverage.</param>
+        /// <param name="slideshowFolder">The folder in which the slideshow images are stored.</param>
+        /// <param name="includeSubFolders">Whether to recursively list image files from subfolders.</param>
+        /// <param name="monitorIDs">The IDs of the monitors on which the slideshow will be applied. Set to <c>null</c> to target all monitors.</param>
+        /// <param name="shuffleType">The type of shuffling to perform.</param>
+        public SlideshowPreset(string presetName, Color backgroundColor, string slideshowFolder, bool includeSubFolders = false, string[] monitorIDs = null, ShuffleType shuffleType = ShuffleType.Ordered)
+        {
+            Name = presetName;
+            BackgroundColor = backgroundColor;
             SlideshowFolder = slideshowFolder;
             MonitorIDs = monitorIDs;
             IncludeSubFolders = includeSubFolders;
             ShuffleType = shuffleType;
         }
 
-        // Private constructor for serialization purposes
-        private SlideshowPreset(SerializationInfo info, StreamingContext context)
+        // constructor for serialization purposes
+        public SlideshowPreset(SerializationInfo info, StreamingContext context)
         {
-            PresetName = (string) info.GetValue("presetname", typeof(string));
+            Enabled = (bool) info.GetValue("enabled", typeof(bool));
+
+            Name = (string) info.GetValue("presetname", typeof(string));
+
+            BackgroundColor = Color.FromArgb( (int) info.GetValue("backgroundcolor", typeof(int)) );
 
             SlideshowFolder = (string) info.GetValue("slideshowfolder", typeof(string));
             // Sanitize path to ensure full path
@@ -131,6 +188,26 @@ namespace DynamicWallpaperRetriever
         #region Methods
 
         /// <summary>
+        /// Obtains the slideshow preset from current Windows wallpaper API configuration.
+        /// </summary>
+        /// <returns>A <see cref="SlideshowPreset"/> based on currently configured Windows slideshow,
+        /// or <c>null</c> if no slideshow is configured.</returns>
+        public static SlideshowPreset FromWindowsSlideshow(string presetName = null)
+        {
+            string slideshowFolder = _wallpaperEngine.GetSlideshowFolder();
+
+            if (slideshowFolder == null)
+            {
+                return null;
+            }
+
+            presetName = presetName == null ? "Windows slideshow" : presetName;
+            bool shuffle = _wallpaperEngine.IsSlideshowShufflingEnabled();
+            ShuffleType shuffleType = shuffle ? ShuffleType.Nonrepeating : ShuffleType.Ordered;
+            return new SlideshowPreset(presetName, slideshowFolder, false, null, shuffleType);
+        }
+
+        /// <summary>
         /// Obtains the path of the next image in the slideshow and updates current preset's metadata.
         /// If more than one monitor is configured for this slideshow preset, simply call this method multiple times.
         /// 
@@ -153,13 +230,12 @@ namespace DynamicWallpaperRetriever
         /// <remarks>Note: this method could be time-consuming to call over enormous wallpaper directories.</remarks>
         public string NextImagePath()
         {
-            // 1) we obtain a list of images
+            // 1) Obtain a list of images
             SearchOption recursiveListFiles = IncludeSubFolders ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-            List<string> slideshowImagePaths = Directory.EnumerateFiles(SlideshowFolder, "*.*", recursiveListFiles).Where(
-                s => AppConfig.SupportedExtensions.Contains(Path.GetExtension(s).ToLowerInvariant())
-                ).ToList();
-            // Sanitize every path to ensure full path
-            slideshowImagePaths.ForEach(s => Path.GetFullPath(s));
+            List<string> slideshowImagePaths = Directory.EnumerateFiles(SlideshowFolder, "*.*", recursiveListFiles)
+                .Where( s => AppConfig.SupportedExtensions.Contains(Path.GetExtension(s).ToLowerInvariant()))
+                .Select(s => Path.GetFullPath(s))       // Sanitize every path to ensure full path
+                .ToList();
 
             // 1.1) If there are less than 2 images in the slideshow folder, then we don't need to update current slideshow image at all
             if (slideshowImagePaths.Count == 0) { return null; }
@@ -222,6 +298,26 @@ namespace DynamicWallpaperRetriever
             return nextPath;
         }
 
+        /// <summary>
+        /// Obtains a list of monitors IDs corresponding to the next monitors in the slideshow
+        /// </summary>
+        /// <returns>An array containing a list of monitor IDs.</returns>
+        public string[] NextMonitors()
+        {
+            List<string> nextMonitorIds = new List<string>();
+            HashSet<string> activeMonitorIDs = new HashSet<string>(_wallpaperEngine.GetActiveMonitorIDs());
+
+            foreach (string monitorID in MonitorIDs)
+            {
+                if (activeMonitorIDs.Contains(monitorID))
+                {
+                    nextMonitorIds.Add(monitorID);
+                }
+            }
+
+            return nextMonitorIds.ToArray();
+        }
+
         #endregion
 
         #region Serialization
@@ -248,7 +344,11 @@ namespace DynamicWallpaperRetriever
 
         public void GetObjectData(SerializationInfo info, StreamingContext context)
         {
-            info.AddValue("presetname", PresetName, typeof(string));
+            info.AddValue("enabled", Enabled);
+
+            info.AddValue("presetname", Name, typeof(string));
+
+            info.AddValue("backgroundcolor", BackgroundColor.ToArgb());
 
             info.AddValue("slideshowfolder", SlideshowFolder, typeof(string));
 

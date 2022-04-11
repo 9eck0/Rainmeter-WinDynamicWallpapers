@@ -11,6 +11,12 @@ namespace DynamicWallpaperRetriever
         private Guid IDesktopWallpaperCoclassClsID = new Guid("c2cf3110-460e-4fc1-b9d0-8a1c0c9cc4bd");
         private IDesktopWallpaper wallpaperEngine;
 
+        /// <summary>
+        /// Instantiates the Windows desktop wallpaper engine.
+        /// </summary>
+        /// <remarks>
+        /// This constructor calls the native (unmanaged) IDesktopWallpaper COM interface to obtain an instance of the coclass implementing said interface.
+        /// </remarks>
         public DesktopWallpaper()
         {
             Type typeIDesktopWallpaper = Type.GetTypeFromCLSID(IDesktopWallpaperCoclassClsID);
@@ -104,12 +110,12 @@ namespace DynamicWallpaperRetriever
         /// <returns>The color of the background. If this method fails, returns Color.Empty</returns>
         public Color GetBackgroundColor()
         {
-            COLORREF rawColor = wallpaperEngine.GetBackgroundColor();
-            if (rawColor.ColorDWORD == 0)
+            uint colorref = wallpaperEngine.GetBackgroundColor();
+            if (colorref == 0xffffffff)
             {
                 return Color.Empty;
             }
-            return rawColor.GetColor();
+            return ColorTranslator.FromWin32((int)colorref);
         }
 
         /// <summary>
@@ -146,7 +152,8 @@ namespace DynamicWallpaperRetriever
         /// <param name="color">The desktop background color.</param>
         public void SetBackgroundColor(Color color)
         {
-            wallpaperEngine.SetBackgroundColor(new COLORREF(color));
+            uint colorref = (uint) ColorTranslator.ToWin32(color);
+            wallpaperEngine.SetBackgroundColor(colorref);
         }
 
         /// <summary>
@@ -218,7 +225,7 @@ namespace DynamicWallpaperRetriever
         public string[] GetSlideshow()
         {
             IShellItemArray slideshows = wallpaperEngine.GetSlideshow();
-            return Win32.Utils.ParseIShellItemArray(slideshows, SIGDN.FILESYSPATH);
+            return Win32.Win32Utils.ParseIShellItemArray(slideshows, SIGDN.FILESYSPATH);
         }
 
         /// <summary>
@@ -259,7 +266,7 @@ namespace DynamicWallpaperRetriever
         {
             // possible exceptions: not a valid path format, not an existing folder
             directory = System.IO.Path.GetFullPath(directory);
-            wallpaperEngine.SetSlideshow(Win32.Utils.CreateIShellItemArray(directory));
+            wallpaperEngine.SetSlideshow(Win32.Win32Utils.CreateIShellItemArray(directory));
         }
 
         /// <summary>
@@ -290,7 +297,7 @@ namespace DynamicWallpaperRetriever
         /// Obtains the monitor IDs of all monitors currently online.
         /// </summary>
         /// <returns>A string array containing the IDs of all active monitors.</returns>
-        public string[] GetActiveMonitorsID()
+        public string[] GetActiveMonitorIDs()
         {
             uint monitorPathCount = GetMonitorDevicePathCount();
             List<string> results = new List<string>((int)monitorPathCount);
@@ -327,7 +334,7 @@ namespace DynamicWallpaperRetriever
             {
                 return null;
             }
-            else if (Utils.IsDirectoryPath(slideshowItems[0]))
+            else if (Win32Utils.IsDirectoryPath(slideshowItems[0]))
             {
                 return slideshowItems[0];
             }

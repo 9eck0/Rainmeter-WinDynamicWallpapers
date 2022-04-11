@@ -108,10 +108,10 @@ namespace DynamicWallpaperRetriever.Win32
         RECT GetMonitorRECT([MarshalAs(UnmanagedType.LPWStr)] string monitorID);
 
         //[MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-        void SetBackgroundColor([MarshalAs(UnmanagedType.U4)] COLORREF color);
+        void SetBackgroundColor(uint color);
 
         //[MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-        COLORREF GetBackgroundColor();
+        uint GetBackgroundColor();
 
         //[MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
         void SetPosition([MarshalAs(UnmanagedType.I4)] DESKTOP_WALLPAPER_POSITION position);
