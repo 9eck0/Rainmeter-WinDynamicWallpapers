@@ -1,5 +1,7 @@
 ﻿using CommandLine;
 using CommandLine.Text;
+using IDesktopWallpaperWrapper;
+using IDesktopWallpaperWrapper.Win32;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -17,11 +19,6 @@ namespace DynamicWallpaperRetriever
 
         public static string WorkingDir = Directory.GetCurrentDirectory();
 
-        //private static Uri IMERG;
-        // This Uri links to the website hosting a dynamic loop of images to be retrieved, not the images themselves.
-        // Regex or another search algorithm is needed in order to retrieve files from the website's HTML source.
-        //private static Uri GoesEastSite;
-
         /*[DllImport("kernel32.dll")]
         static extern IntPtr GetConsoleWindow();
 
@@ -36,51 +33,63 @@ namespace DynamicWallpaperRetriever
             // Apply localization based on current system culture
             Localization.ApplyLocalization(Localization.GetSystemCulture().Name);
 
+            var parseResults = Parser.Default.ParseArguments<CommandLineOptions.GetWallpaperOptions,
+                    CommandLineOptions.SetWallpaperOptions,
+                    CommandLineOptions.SlideshowOptions>(args);
+            
             if (args.Length == 0)
             {
+                // No argument given. Show help
 
+                var helpText = HelpText.AutoBuild(parseResults);
+                helpText.AddDashesToOption = true;
+                helpText.AddNewLineBetweenHelpSections = true;
+                helpText.Copyright = new CopyrightInfo("9eck0", DateTime.Now.Year);
+
+                helpText.AddPreOptionsLine(Environment.NewLine);
+
+                Console.WriteLine(helpText);
             }
             else if (args.Length > 0)
             {
-                Parser.Default.ParseArguments<CommandLineOptions.GetWallpaperOptions,
-                    CommandLineOptions.SetWallpaperOptions,
-                    CommandLineOptions.SlideshowOptions>(args)
+                // Execute command
+
+                parseResults
                     .WithParsed<CommandLineOptions.GetWallpaperOptions>(options => GetWallpaper(options))
                     .WithParsed<CommandLineOptions.SetWallpaperOptions>(options => SetWallpaper(options))
                     .WithParsed<CommandLineOptions.SlideshowOptions>(options => ManipulateSlideshows(options))
                     .WithNotParsed(errors => FaultyCommand(errors));
-
-                // GOES East
-                //GoesEastSite = new Uri("https://www.star.nesdis.noaa.gov/GOES/FullDisk_band.php?sat=G16&band=GEOCOLOR&length=96");
-                //Console.WriteLine("Downloading GOES East image collection...");
-                //DownloadGoesEast();
-
-                // IMERG
-                //IMERG = new Uri("https://trmm.gsfc.nasa.gov/trmm_rain/Events/ATLA/latest_big_half_hourly_gridded.jpg");
-                /*new Thread(() =>
-                {
-                    Thread.CurrentThread.IsBackground = true;
-                    Console.WriteLine("Downloading IMERG image...");
-                    Download(IMERG, WorkingDir + "\\IMERG.jpg", 300 * 1000);
-                }).Start();*/
-                // Async requests do not work with WebClient Timeout property.
-                //DownloadAsync(IMERG, WorkingDir + "\\IMERG.jpg", 30 * 1000);
-
-                //Console.ReadLine();
-
-                // Himawari does not have an uniform URL for its latest imagery. Thus, we need to hard-code its URL constructor.
-
-                //string wallpaperPath = Path.Combine(Environment.CurrentDirectory, "hima.jpg");
             }
 
             
         }
 
+        /// <summary>
+        /// Functionalities:
+        /// <list type="bullet">
+        /// <item>Gets the file location of the wallpaper on a single monitor.</item>
+        /// <item>Gets the monitor ID by index.</item>
+        /// <item>Gets a list of active monitor IDs.</item>
+        /// <item>Outputs to specified stream (console or file).</item>
+        /// <item>Get whether the internet connection is metered or not.</item>
+        /// </list>
+        /// </summary>
+        /// <param name="options">Set of command line arguments to be parsed.</param>
         private static void GetWallpaper(CommandLineOptions.GetWallpaperOptions options)
         {
-
+            
         }
 
+        /// <summary>
+        /// Functionalities:
+        /// <list type="bullet">
+        /// <item>Set a single wallpaper.</item>
+        /// <item>Specify a single monitor to set the wallpaper onto, using either the index or monitor ID.</item>
+        /// <item>Sets the display option of wallpapers.</item>
+        /// <item>Sets the background color.</item>
+        /// </list>
+        /// </summary>
+        /// <param name="options">Set of command line arguments to be parsed.</param>
         private static void SetWallpaper(CommandLineOptions.SetWallpaperOptions options)
         {
             // URL conversion
@@ -127,6 +136,7 @@ namespace DynamicWallpaperRetriever
                 }
                 catch (Exception ex)
                 {
+                    // Download fails: exits the wallpaper setting operation
                     FaultyCommand(Properties.strings.ErrorDownloadPrefix + ex.Message);
                     return;
                 }
@@ -135,22 +145,43 @@ namespace DynamicWallpaperRetriever
             }
 
             // Apply the wallpaper
-
-            if (options.Monitor >= 0)
+            options.Monitor = options.Monitor.Trim();
+            if (!options.Monitor.Equals(""))
             {
-                string monitorID = wallpaperEngine.GetEngine().GetMonitorDevicePathAt((uint)options.Monitor);
-                wallpaperEngine.GetEngine().SetWallpaper(monitorID, wallpaperFile.FullName);
+                if (int.TryParse(options.Monitor, out int monitorIndex))
+                {
+                    // Specified monitor index
+                    wallpaperEngine.SetWallpaper(wallpaperFile.FullName, monitorIndex);
+                }
+                else if (Array.Exists(
+                        wallpaperEngine.GetEngine().GetActiveMonitorIDs(),
+                        x => x.Equals(options.Monitor)
+                        ))
+                {
+                    // Specified monitor ID
+                    wallpaperEngine.GetEngine().SetWallpaper(options.Monitor, wallpaperFile.FullName);
+                }
+                else
+                {
+                    FaultyCommand(Properties.strings.FaultyCommandErrorPrefix + Properties.strings.ErrorSetMonitorMalformed);
+                }
             }
             else
             {
+                // Apply to all monitors
                 wallpaperEngine.SetWallpaper(wallpaperFile.FullName);
             }
+            Console.WriteLine("Wallpaper applied");
+
+            // Apply wallpaper positioning
 
             if (options.Position >= 0 && options.Position <= 5)
             {
-                Win32.DESKTOP_WALLPAPER_POSITION wallpaperPositioning = (Win32.DESKTOP_WALLPAPER_POSITION) options.Position;
+                DESKTOP_WALLPAPER_POSITION wallpaperPositioning = (DESKTOP_WALLPAPER_POSITION) options.Position;
                 wallpaperEngine.GetEngine().SetPosition(wallpaperPositioning);
             }
+
+            // Apply background color
 
             if (options.BackgroundColor != null)
             {
@@ -163,11 +194,11 @@ namespace DynamicWallpaperRetriever
                     FaultyCommand(Properties.strings.ErrorSetBackgroundColorPrefix + Properties.strings.ErrorHtmlColorCodeFormat);
                     return;
                 }
-                /*catch (Exception ex)
+                catch (Exception ex)
                 {
                     Console.Error.WriteLine(Properties.strings.ErrorSetBackgroundColorPrefix + ex.Message);
                     Console.Error.WriteLine(ex.StackTrace);
-                }*/
+                }
             }
         }
 
@@ -219,11 +250,20 @@ namespace DynamicWallpaperRetriever
         {
             // Setup
             WallpaperDownloader downloader = new WallpaperDownloader();
+            downloader.DownloadProgressChanged += DownloadClient_ProgressChanged;
             downloader.DownloadCompleted += DownloadClient_DownloadFileFinished;
 
             // Download
             lastDownloadUri = url;
+            Console.WriteLine("Downloading resource from: {0}", url);
             downloader.Download(url, savepath);
+        }
+
+        static void DownloadClient_ProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        {
+            string readableBytesReceived = Utils.ToReadableBinaryBytes(e.BytesReceived);
+            string readableBytesTotal = Utils.ToReadableBinaryBytes(e.TotalBytesToReceive);
+            Utils.WriteTemporaryLine("Downloading: {0}%, {1}/{2}".PadRight(36, ' '), e.ProgressPercentage, readableBytesReceived, readableBytesTotal);
         }
 
         static void DownloadClient_DownloadFileFinished(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
@@ -240,65 +280,9 @@ namespace DynamicWallpaperRetriever
             }
             else
             {
-                // TODO download finished handler
-                //Console.WriteLine("Successfully downloaded resource at: " + lastDownloadUri);
+                Console.WriteLine("Download finished.".PadRight(36, ' '));
                 wallpaperEngine.GetEngine().SetSlideshow(Environment.CurrentDirectory);
             }
-        }
-
-        /*#region GoesEast
-
-        private static void DownloadGoesEast()
-        {
-            try
-            {
-                MyWebClient client = new MyWebClient();
-                // siteSrc needs to be parsed in order to retrieve image files.
-                string siteSrc = client.DownloadString(GoesEastSite);
-                Console.WriteLine("Successfully retrieved GoesEast site source");
-
-                string[] imageUrl = ParseGoesEast(siteSrc);
-                for (int i = 0; i < imageUrl.Length; i++)
-                {
-                    DownloadAsync(new Uri(imageUrl[i]), WorkingDir + "\\GoesEast" /*+ i*/ /*+ ".jpg");
-                }
-            }
-            catch (WebException)
-            {
-                Console.WriteLine("Cannot access GOES East resource at this moment.");
-            }
-        }
-
-        private static string[] ParseGoesEast(string htmlSrc)
-        {
-            string[] imageUri = new string[1];
-            imageUri[0] = "https://cdn.star.nesdis.noaa.gov/GOES16/ABI/FD/GEOCOLOR/1808x1808.jpg";
-            return imageUri;
-        }
-
-        #endregion GoesEast*/
-
-        static string CurrentHimawariUrl()
-        {//http://www.jma.go.jp/en/gms/imgs_c/6/visible/1/201810062150-00.png
-            string baseUrl = "http://www.jma.go.jp/en/gms/imgs_c/6/visible/1/{0}{1}{2}{3}{4}-00.png";
-            string[] UtcTimeFormat = new string[5]
-            {
-                DateTimeOffset.UtcNow.Year.ToString(),
-                DateTimeOffset.UtcNow.Month.ToString().Length == 2 ? 
-                    DateTimeOffset.UtcNow.Month.ToString() : 
-                    DateTimeOffset.UtcNow.Month.ToString("D2"),
-                DateTimeOffset.UtcNow.Day.ToString().Length == 2 ?
-                    DateTimeOffset.UtcNow.Day.ToString() :
-                    DateTimeOffset.UtcNow.Day.ToString("D2"),
-                DateTimeOffset.UtcNow.Hour.ToString().Length == 2 ?
-                    DateTimeOffset.UtcNow.Hour.ToString() :
-                    DateTimeOffset.UtcNow.Hour.ToString("D2"),
-                // There is a 5 minutes delay for Himawari visible band images to be online.
-                ((DateTimeOffset.UtcNow.Minute-5) - (DateTimeOffset.UtcNow.Minute-5) % 10).ToString().Length == 2 ?
-                    ((DateTimeOffset.UtcNow.Minute-5) - (DateTimeOffset.UtcNow.Minute-5) % 10).ToString() :
-                    "00"
-            };
-            return String.Format(baseUrl, UtcTimeFormat[0], UtcTimeFormat[1], UtcTimeFormat[2], UtcTimeFormat[3], UtcTimeFormat[4]);
         }
     }
 }

@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
 [assembly: AssemblyProduct("DynamicWallpaperRetriever")]
-[assembly: AssemblyCopyright("Copyright ©  2018")]
+[assembly: AssemblyCopyright("Copyright © 2022 9eck0")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

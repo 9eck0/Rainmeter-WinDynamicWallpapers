@@ -115,6 +115,15 @@ namespace DynamicWallpaperRetriever.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to  the provided monitor index/ID is incorrect..
+        /// </summary>
+        internal static string ErrorSetMonitorMalformed {
+            get {
+                return ResourceManager.GetString("ErrorSetMonitorMalformed", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to Invalid command: .
         /// </summary>
         internal static string FaultyCommandErrorPrefix {

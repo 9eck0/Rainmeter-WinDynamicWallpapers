@@ -13,10 +13,11 @@ namespace DynamicWallpaperRetriever
         private const string userAgent = @"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/51.0.2704.103 Safari/537.36";
 
         private CustomTimeoutWebClient client;
-        private string lastDownloadUrl;
 
         public int DownloadProgressPercentage { get; private set; } = -1;
         public bool Active { get; private set; } = false;
+
+        public string LastDownloadUrl { get; private set; }
 
         public void Download(Uri path, string fileName, int timeout = 30*1000)
         {
@@ -30,6 +31,7 @@ namespace DynamicWallpaperRetriever
         /// <param name="Path">The URL path to the file.</param>
         /// <param name="FileName">The complete path for the desired file</param>
         /// <param name="Timeout">Optional: Specify a custom timeout, in milliseconds, for high-ping resource access</param>
+        /// <returns>The task object representing the download operation.</returns>
         public async Task DownloadAsync(Uri Path, string fileName, int timeout = 30 * 1000)
         {
             string tempName = fileName + ".temp";
@@ -52,7 +54,7 @@ namespace DynamicWallpaperRetriever
                     client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(DownloadClient_DownloadProgressChanged);
                     client.DownloadProgressChanged += DownloadProgressChanged;
 
-                    lastDownloadUrl = Path.ToString();
+                    LastDownloadUrl = Path.ToString();
 
                     Active = true;
 
@@ -95,25 +97,7 @@ namespace DynamicWallpaperRetriever
 
         void DownloadClient_DownloadFileFinished(object sender, AsyncCompletedEventArgs e)
         {
-            if (e.Cancelled)
-            {
-                Console.WriteLine("Download cancelled for resource at: " + lastDownloadUrl);
-            }
-            else if (e.Error != null)
-            {
-                Console.WriteLine("Download failed for resource at: " + lastDownloadUrl);
-                Console.WriteLine(e.Error.Message);
-                Console.WriteLine(e.Error.StackTrace);
-            }
-            else
-            {
-                Console.WriteLine("Successfully downloaded resource at: " + lastDownloadUrl);
-            }
-
             Active = false;
-
-            // invoke event
-            //DownloadCompleted.BeginInvoke(this, e);
         }
 
         private class CustomTimeoutWebClient : WebClient

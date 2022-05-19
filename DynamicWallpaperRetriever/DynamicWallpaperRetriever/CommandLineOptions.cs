@@ -32,9 +32,9 @@ namespace DynamicWallpaperRetriever
                 HelpText = "Location to save the downloaded image file to. Can be an absolute or relative path.")]
             public string SavePath { get; set; }
 
-            [Option(shortName: 'm', longName: "monitor", Required = false, Default = -1,
-                HelpText = "Monitor index on which to set the wallpaper (use get -c to get active monitors count). Set to -1 to display on all monitors.")]
-            public int Monitor { get; set; }
+            [Option(shortName: 'm', longName: "monitor", Required = false, Default = "",
+                HelpText = "Monitor index or ID on which to set the wallpaper (use get -c to get active monitors count). Leave empty to display on all monitors.")]
+            public string Monitor { get; set; }
 
             [Option(shortName: 'p', longName: "position", Required = false, Default = -1,
                 HelpText = "The display option for wallpapers: 0 = center; 1 = tile; 2 = stretch; 3 = fit; 4 = fill; 5 = span")]
@@ -52,14 +52,14 @@ namespace DynamicWallpaperRetriever
                     yield return new Example("IMERG (precipitation map, 30m) bundle", new SetWallpaperOptions {
                         Url = "https://trmm.gsfc.nasa.gov/trmm_rain/Events/ATLA/latest_big_half_hourly_gridded.jpg",
                         SavePath = "IMERG.jpg",
-                        Monitor = 0,
+                        Monitor = "",
                         Position = 3,
                         BackgroundColor = "#353535"
                     });
                     yield return new Example("GOES East geocolor (Americas, 10m) bundle", new SetWallpaperOptions {
                         Url = "https://cdn.star.nesdis.noaa.gov/GOES16/ABI/FD/GEOCOLOR/1808x1808.jpg",
                         SavePath = "GoesEast.jpg",
-                        Monitor = 0,
+                        Monitor = "",
                         Position = 3,
                         BackgroundColor = "#000000"
                     });
@@ -67,7 +67,7 @@ namespace DynamicWallpaperRetriever
                     {
                         Url = "https://cdn.star.nesdis.noaa.gov/GOES17/ABI/FD/GEOCOLOR/1808x1808.jpg",
                         SavePath = "GoesWest.jpg",
-                        Monitor = 0,
+                        Monitor = "",
                         Position = 3,
                         BackgroundColor = "#000000"
                     });
@@ -75,7 +75,7 @@ namespace DynamicWallpaperRetriever
                     {
                         Url = "https://eumetview.eumetsat.int/static-images/latestImages/EUMETSAT_MSG_RGBNatColourEnhncd_FullResolution.jpg",
                         SavePath = "Meteosat11.jpg",
-                        Monitor = 0,
+                        Monitor = "",
                         Position = 3,
                         BackgroundColor = "#000000"
                     });
@@ -83,7 +83,7 @@ namespace DynamicWallpaperRetriever
                     {
                         Url = "https://eumetview.eumetsat.int/static-images/latestImages/EUMETSAT_MSGIODC_RGBNatColourEnhncd_FullResolution.jpg",
                         SavePath = "Meteosat8.jpg",
-                        Monitor = 0,
+                        Monitor = "",
                         Position = 3,
                         BackgroundColor = "#000000"
                     });
@@ -91,7 +91,7 @@ namespace DynamicWallpaperRetriever
                     {
                         Url = "https://rammb.cira.colostate.edu/ramsdis/online/images/latest_hi_res/himawari-8/full_disk_ahi_true_color.jpg",
                         SavePath = "Himawari8.jpg",
-                        Monitor = 0,
+                        Monitor = "",
                         Position = 3,
                         BackgroundColor = "#000000"
                     });
@@ -103,7 +103,7 @@ namespace DynamicWallpaperRetriever
 
         #region Query current wallpapers by monitor
 
-        [Verb(name: "get", HelpText = "Obtains current wallpaper (or other settings) and outputs the result in a custom file.")]
+        [Verb(name: "get", HelpText = "Obtains current wallpaper (or other settings) and optionally outputs the result in a custom file.")]
         public class GetWallpaperOptions
         {
             [Option(shortName: 'w', longName: "wallpaper", SetName = "GetWallpaper",
@@ -112,18 +112,22 @@ namespace DynamicWallpaperRetriever
 
             [Option(shortName: 'm', longName: "monitorindex", SetName = "GetWallpaper" , Required = false, Default = 0,
                 HelpText = "Specify a specific monitor index for the wallpaper image.")]
-            public int Index { get; set; }
+            public int MonitorIndex { get; set; }
 
             [Option(shortName: 'c', longName: "monitorcount", SetName = "GetMonitorCount",
                 HelpText = "Gets the amount of active monitors.")]
             public bool MonitorCount { get; set; }
 
             [Option(shortName: 's', longName: "slideshow", SetName = "GetSlideshow",
-                HelpText = "Gets the folder of the current slideshow. Outputs an empty file if no slideshow is configured.")]
+                HelpText = "Gets the folder of the current slideshow. Output is empty if no slideshow is configured.")]
             public bool Slideshow { get; set; }
 
-            [Option(shortName: 'o', longName: "outputfile", Required = true,
-                HelpText = "The path of the file to output results to.")]
+            [Option(shortName: 'm', longName: "monitorindex", SetName = "GetSlideshow", Required = false, Default = -1,
+                HelpText = "Specify a specific monitor index of the slideshow.")]
+            public int SlideshowMonitorIndex { get; set; }
+
+            [Option(shortName: 'o', longName: "outputfile",
+                HelpText = "The path of the file to output results to. Leave empty to output to console.")]
             public string OutputFile { get; set; }
         }
 

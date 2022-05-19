@@ -141,6 +141,10 @@
     <value>Cannot set background color: </value>
     <comment>Prefix for background color setting errors.</comment>
   </data>
+  <data name="ErrorSetMonitorMalformed" xml:space="preserve">
+    <value> the provided monitor index/ID is incorrect.</value>
+    <comment>Shown when accessing a monitor by its index or ID.</comment>
+  </data>
   <data name="FaultyCommandErrorPrefix" xml:space="preserve">
     <value>Invalid command: </value>
     <comment>Used in Program.FaultyCommand(errors) to begin an obtrusive command line error.</comment>

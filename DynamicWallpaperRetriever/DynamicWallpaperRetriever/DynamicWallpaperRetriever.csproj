@@ -5,9 +5,9 @@
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{8A7B3E86-D4FE-4129-9145-4D0EEFE8C3A5}</ProjectGuid>
-    <OutputType>WinExe</OutputType>
+    <OutputType>Exe</OutputType>
     <RootNamespace>DynamicWallpaperRetriever</RootNamespace>
-    <AssemblyName>DynamicWallpaperRetriever</AssemblyName>
+    <AssemblyName>dwr</AssemblyName>
     <TargetFrameworkVersion>v4.7.2</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
@@ -36,7 +36,7 @@
     <WarningLevel>4</WarningLevel>
   </PropertyGroup>
   <PropertyGroup>
-    <StartupObject />
+    <StartupObject>DynamicWallpaperRetriever.Program</StartupObject>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)' == 'Debug|x86'">
     <DebugSymbols>true</DebugSymbols>
@@ -205,16 +205,6 @@
     <Compile Include="SlideshowPreset.cs" />
     <Compile Include="Utils.cs" />
     <Compile Include="WallpaperEngine.cs" />
-    <Compile Include="Win32\CLSCTX.cs" />
-    <Compile Include="DesktopWallpaper.cs" />
-    <Compile Include="Win32\IDesktopWallpaper.cs" />
-    <Compile Include="Win32\IShellItem.cs" />
-    <Compile Include="Win32\IShellItemArray.cs" />
-    <Compile Include="Win32\PROPERTYKEY.cs" />
-    <Compile Include="Win32\RECT.cs" />
-    <Compile Include="Win32\SFGAOF.cs" />
-    <Compile Include="Win32\SIGDN.cs" />
-    <Compile Include="Win32\Win32Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
@@ -233,6 +223,12 @@
       <Generator>ResXFileCodeGenerator</Generator>
       <LastGenOutput>strings.Designer.cs</LastGenOutput>
     </EmbeddedResource>
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\IDesktopWallpaper-dotNet\IDesktopWallpaperWrapper\IDesktopWallpaperWrapper.csproj">
+      <Project>{33af0771-15ec-476a-ba19-7539a1684766}</Project>
+      <Name>IDesktopWallpaperWrapper</Name>
+    </ProjectReference>
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Import Project="..\packages\System.Text.Json.6.0.2\build\System.Text.Json.targets" Condition="Exists('..\packages\System.Text.Json.6.0.2\build\System.Text.Json.targets')" />

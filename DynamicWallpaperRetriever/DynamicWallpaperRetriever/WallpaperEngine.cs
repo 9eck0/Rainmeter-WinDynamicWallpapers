@@ -1,4 +1,5 @@
-﻿using System;
+﻿using IDesktopWallpaperWrapper;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -100,7 +101,8 @@ namespace DynamicWallpaperRetriever
         /// <summary>
         /// Sets the wallpaper on a specific monitor.
         /// 
-        /// Note that setting a walllpaper when 
+        /// Note that setting wallpaper on a monitor, when a slideshow has been configured on that monitor,
+        /// will disable the slideshow.
         /// </summary>
         /// <param name="imagePath"></param>
         /// <param name="monitorIndex"></param>
@@ -110,7 +112,7 @@ namespace DynamicWallpaperRetriever
             if (IsWindowsSlideshowConfigured())
             {
                 // Disables Windows slideshow
-                _wallpaperEngine.SetSlideshow("");
+                RemoveWindowsSlideshow();
             }
 
             _wallpaperEngine.SetWallpaper(monitorID, imagePath);
@@ -193,6 +195,13 @@ namespace DynamicWallpaperRetriever
         /// <param name="name">The identifying name of the slideshow preset.</param>
         public void RemoveSlideshow(string name)
         {
+            // Remove Windows slideshow, if configured
+            if (IsWindowsSlideshowConfigured())
+            {
+                RemoveWindowsSlideshow();
+            }
+
+            // Remove custom slideshow presets
             var toBeRemoved = SlideshowPresets.TakeWhile(preset => preset.Name == name);
             SlideshowPresets.RemoveWhere(x => toBeRemoved.Contains(x));
         }
@@ -227,6 +236,21 @@ namespace DynamicWallpaperRetriever
                 return true;
             }
             return false;
+        }
+
+        internal void RemoveWindowsSlideshow()
+        {
+            // Method: fetch image location of every image displayed, then reapply one-by-one
+            // on each corresponding monitor
+            string[] activeMonitorIDs = _wallpaperEngine.GetActiveMonitorIDs();
+            foreach (string monitorID in activeMonitorIDs)
+            {
+                string imagePath = _wallpaperEngine.GetWallpaper(monitorID);
+                if (File.Exists(imagePath))
+                {
+                    _wallpaperEngine.SetWallpaper(monitorID, imagePath);
+                }
+            }
         }
 
         #endregion Slideshows
