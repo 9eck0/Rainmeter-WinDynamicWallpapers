@@ -9,6 +9,8 @@ namespace DynamicWallpaperRetriever
 {
     public static class Utils
     {
+        #region File system
+
         public static bool IsValidFilePath(string path)
         {
             if (path == null) return false;
@@ -101,6 +103,10 @@ namespace DynamicWallpaperRetriever
             return directoryPath;
         }
 
+        #endregion File system
+
+        #region String manipulations
+
         public static string EscapeString(string input, char[] targets, char escapeChar)
         {
             StringBuilder sb = new StringBuilder();
@@ -129,5 +135,52 @@ namespace DynamicWallpaperRetriever
             }
             return sb.ToString();
         }
+
+        public static string ToReadableBinaryBytes(long bytes)
+        {
+            string[] suffixes = { "B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB" };
+            int order = 0;
+            while (bytes >= 1024 && order < suffixes.Length - 1)
+            {
+                order++;
+                bytes = bytes / 1024;
+            }
+
+            return String.Format("{0:0.##}{1}", bytes, suffixes[order]);
+        }
+
+        #endregion String manipulations
+
+        #region I/O
+
+        public static void WriteTemporaryLine(string message)
+        {
+            // Assuming cursor is at the end of line
+            int lineWidth = Console.CursorLeft;
+            // Erase current line content with spaces
+            WriteTemporaryLine(Console.Out, "".PadRight(lineWidth));
+            WriteTemporaryLine(Console.Out, message);
+        }
+
+        public static void WriteTemporaryLine(string format, params object[] args)
+        {
+            // Assuming cursor is at the end of line
+            int lineWidth = Console.CursorLeft;
+            // Erase current line content with spaces
+            WriteTemporaryLine(Console.Out, "".PadRight(lineWidth));
+            WriteTemporaryLine(Console.Out, format, args);
+        }
+
+        public static void WriteTemporaryLine(TextWriter stream, string message)
+        {
+            stream.Write("{0}\r", message);
+        }
+
+        public static void WriteTemporaryLine(TextWriter stream, string message, params object[] args)
+        {
+            stream.Write(message + "\r", args);
+        }
+
+        #endregion I/O
     }
 }
