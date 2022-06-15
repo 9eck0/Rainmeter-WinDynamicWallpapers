@@ -1,4 +1,5 @@
-﻿using System;
+﻿using IDesktopWallpaperWrapper;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -6,7 +7,7 @@ using System.Linq;
 using System.Runtime.Serialization;
 using System.Xml.Serialization;
 
-namespace DynamicWallpaperRetriever
+namespace DynamicWallpaperRetriever.Slideshows
 {
     /// <summary>
     /// Defines the type of progression pattern for selecting wallpaper images in a slideshow.
@@ -34,6 +35,9 @@ namespace DynamicWallpaperRetriever
         Random
     }
 
+    /// <summary>
+    /// Specifies which monitor(s) will progress during an update.
+    /// </summary>
     [DataContract(Name = "EnumMonitorProgression")]
     public enum MonitorProgression
     {
@@ -61,10 +65,11 @@ namespace DynamicWallpaperRetriever
     /// </summary>
     [Serializable]
     [DataContract]
-    public class SlideshowPreset : ISerializable
+    public class SlideshowPreset : ISerializable, ISafeSerializationData
     {
         #region Fields & Properties
 
+        [NonSerialized]
         private static DesktopWallpaper _wallpaperEngine = new DesktopWallpaper();
 
         /// <summary>
@@ -362,6 +367,11 @@ namespace DynamicWallpaperRetriever
             info.AddValue("shuffledimagepaths", shuffledImagesArray, typeof(string[]));
 
             info.AddValue("currentimagepath", CurrentImage, typeof(string));
+        }
+
+        public void CompleteDeserialization(object deserialized)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion

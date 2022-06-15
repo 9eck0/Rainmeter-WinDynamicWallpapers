@@ -1,4 +1,5 @@
-﻿using System;
+﻿using DynamicWallpaperRetriever.Slideshows;
+using System;
 using System.Collections.Generic;
 using System.Configuration;
 using System.IO;
