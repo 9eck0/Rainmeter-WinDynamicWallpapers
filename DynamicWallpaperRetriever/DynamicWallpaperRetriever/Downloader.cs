@@ -1,9 +1,7 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.IO;
 using System.Net;
-using System.Text;
 using System.Threading.Tasks;
 
 namespace DynamicWallpaperRetriever
@@ -49,6 +47,7 @@ namespace DynamicWallpaperRetriever
                     //For some resources, a 403: Forbidden error can be thrown if no user agent is provided.
                     client.Headers.Add("User-Agent: " + userAgent);
 
+                    // Add event handles
                     client.DownloadFileCompleted += new AsyncCompletedEventHandler(DownloadClient_DownloadFileFinished);
                     client.DownloadFileCompleted += DownloadCompleted;
                     client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(DownloadClient_DownloadProgressChanged);
@@ -56,37 +55,24 @@ namespace DynamicWallpaperRetriever
 
                     LastDownloadUrl = Path.ToString();
 
+                    // Download
                     Active = true;
-
-                    // Uncomment this section to download in the main thread
-                    /*client.DownloadFile(Path, tempName);*/
-
-                    // Uncomment this section to download asynchronously
-                    /*client.DownloadFileAsync(Path, tempName);*/
-
-                    // Uncomment this section to download asynchronously using a task object
-                    //var asyncDownload = client.DownloadFileTaskAsync(Path, tempName);
-                    // Waiting for completion
-                    //asyncDownload.Wait(client.DefaultTimeout);
 
                     await client.DownloadFileTaskAsync(Path, tempName);
                 }
 
                 // Rename temp file to desired file name
-                if (File.Exists(fileName))
-                {
-                    File.Delete(fileName);
-                }
+                File.Delete(fileName);
                 File.Move(tempName, fileName);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
                 Console.WriteLine("Cannot download resource at: " + Path.ToString());
 
-                if (File.Exists(tempName))
-                {
-                    File.Delete(tempName);
-                }
+                // Remove temp file, if present
+                File.Delete(tempName);
+
+                throw ex;
             }
         }
 
@@ -128,7 +114,7 @@ namespace DynamicWallpaperRetriever
         #region Events
         public event DownloadProgressChangedEventHandler DownloadProgressChanged;
 
-        public event System.ComponentModel.AsyncCompletedEventHandler DownloadCompleted;
+        public event AsyncCompletedEventHandler DownloadCompleted;
         #endregion Events
     }
 }
