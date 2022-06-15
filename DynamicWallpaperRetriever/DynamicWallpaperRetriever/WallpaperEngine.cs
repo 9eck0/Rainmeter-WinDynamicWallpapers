@@ -1,4 +1,5 @@
-﻿using IDesktopWallpaperWrapper;
+﻿using DynamicWallpaperRetriever.Slideshows;
+using IDesktopWallpaperWrapper;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -12,21 +13,20 @@ namespace DynamicWallpaperRetriever
     /// <summary>
     /// Provides custom advanced methods of automating and interfacing with DesktopWallpaper.
     /// </summary>
-    public class WallpaperEngine
+    public static class WallpaperEngine
     {
 
-        private readonly DesktopWallpaper _wallpaperEngine;
-        private readonly HashSet<SlideshowPreset> SlideshowPresets = new HashSet<SlideshowPreset>();
+        private static readonly DesktopWallpaper _wallpaperInterface = new DesktopWallpaper();
+        private static readonly HashSet<SlideshowPreset> SlideshowPresets = new HashSet<SlideshowPreset>();
 
-        public WallpaperEngine()
+
+        /// <summary>
+        /// Obtains the Windows API COM interface for wallpaper manipulations.
+        /// </summary>
+        /// <returns>A wrapper instance of COM IDesktopWallpaper interface.</returns>
+        public static DesktopWallpaper GetInterface()
         {
-            _wallpaperEngine = new DesktopWallpaper();
-        }
-
-
-        public DesktopWallpaper GetEngine()
-        {
-            return _wallpaperEngine;
+            return _wallpaperInterface;
         }
         #region Wallpapers
 
@@ -48,9 +48,9 @@ namespace DynamicWallpaperRetriever
         /// Gets the background color for all monitors, in HTML hex color code format.
         /// </summary>
         /// <returns>The hexadecimal HTML color code.</returns>
-        public string GetBackgroundColor()
+        public static string GetBackgroundHexColor()
         {
-            Color bgColor = _wallpaperEngine.GetBackgroundColor();
+            Color bgColor = _wallpaperInterface.GetBackgroundColor();
             return ColorTranslator.ToHtml(bgColor);
         }
 
@@ -59,7 +59,7 @@ namespace DynamicWallpaperRetriever
         /// </summary>
         /// <param name="backgroundColorHex">The hexadecimal HTML color code.</param>
         /// <exception cref="Exception">backgroundColorHex is not a properly formatted HTML color code.</exception>
-        public void SetBackgroundColor(string backgroundColorHex)
+        public static void SetBackgroundHexColor(string backgroundColorHex)
         {
             // Converts color string
             Color bgColor = Color.Empty;
@@ -75,7 +75,7 @@ namespace DynamicWallpaperRetriever
             // Apply color
             if (bgColor != Color.Empty)
             {
-                _wallpaperEngine.SetBackgroundColor(bgColor);
+                _wallpaperInterface.SetBackgroundColor(bgColor);
             }
         }
 
@@ -86,15 +86,15 @@ namespace DynamicWallpaperRetriever
         /// call <see cref="DesktopWallpaper.SetWallpaper(string, string)">GetEngine().SetWallpaper(monitorID, path)</see>.
         /// </summary>
         /// <param name="imagePath">The fully-qualified path to the image file.</param>
-        public void SetWallpaper(string imagePath)
+        public static void SetWallpaper(string imagePath)
         {
             CheckImageFileValidity(imagePath);
 
             imagePath = Path.GetFullPath(imagePath);
 
-            foreach (string monitorID in _wallpaperEngine.GetActiveMonitorIDs())
+            foreach (string monitorID in _wallpaperInterface.GetActiveMonitorIDs())
             {
-                _wallpaperEngine.SetWallpaper(monitorID, imagePath);
+                _wallpaperInterface.SetWallpaper(monitorID, imagePath);
             }
         }
 
@@ -106,16 +106,16 @@ namespace DynamicWallpaperRetriever
         /// </summary>
         /// <param name="imagePath"></param>
         /// <param name="monitorIndex"></param>
-        public void SetWallpaper(string imagePath, int monitorIndex)
+        public static void SetWallpaper(string imagePath, int monitorIndex)
         {
-            string monitorID = GetEngine().GetMonitorDevicePathAt((uint)monitorIndex);
+            string monitorID = GetInterface().GetMonitorDevicePathAt((uint)monitorIndex);
             if (IsWindowsSlideshowConfigured())
             {
                 // Disables Windows slideshow
                 RemoveWindowsSlideshow();
             }
 
-            _wallpaperEngine.SetWallpaper(monitorID, imagePath);
+            _wallpaperInterface.SetWallpaper(monitorID, imagePath);
         }
 
         #endregion Wallpapers
@@ -126,7 +126,7 @@ namespace DynamicWallpaperRetriever
         /// Advances the slideshow on all configured and active presets.
         /// </summary>
         /// <param name="presets">The list of configured presets.</param>
-        public void AdvanceSlideshows(IEnumerable<SlideshowPreset> presets)
+        public static void AdvanceSlideshows(IEnumerable<SlideshowPreset> presets)
         {
             foreach (SlideshowPreset preset in presets)
             {
@@ -137,12 +137,12 @@ namespace DynamicWallpaperRetriever
 
                 foreach (string monitorID in preset.NextMonitors())
                 {
-                    _wallpaperEngine.SetWallpaper(monitorID, imagePath);
+                    _wallpaperInterface.SetWallpaper(monitorID, imagePath);
                 }
             }
         }
 
-        public void AddSlideshow(SlideshowPreset preset)
+        public static void AddSlideshow(SlideshowPreset preset)
         {
             if (preset == null)
             {
@@ -161,12 +161,12 @@ namespace DynamicWallpaperRetriever
         /// Obtains a copy of all configured slideshows as an array.
         /// </summary>
         /// <returns>An array of <see cref="SlideshowPreset"/>s.</returns>
-        public SlideshowPreset[] GetSlideshows()
+        public static SlideshowPreset[] GetSlideshows()
         {
             return SlideshowPresets.ToArray();
         }
 
-        public SlideshowPreset[] GetSlideshows(string monitorID)
+        public static SlideshowPreset[] GetSlideshows(string monitorID)
         {
             List<SlideshowPreset> configuredSlideshows = new List<SlideshowPreset>();
             foreach (SlideshowPreset preset in SlideshowPresets)
@@ -174,13 +174,24 @@ namespace DynamicWallpaperRetriever
                 if (preset.MonitorIDs.Contains(monitorID))
                 {
                     configuredSlideshows.Add(preset);
-                    break;
                 }
             }
             return configuredSlideshows.ToArray();
         }
 
-        public SlideshowPreset GetWindowsSlideshow()
+        public static SlideshowPreset GetSlideshowFromId(string monitorID)
+        {
+            foreach (SlideshowPreset preset in SlideshowPresets)
+            {
+                if (preset.MonitorIDs.Contains(monitorID))
+                {
+                    return preset;
+                }
+            }
+            return GetWindowsSlideshow();
+        }
+
+        public static SlideshowPreset GetWindowsSlideshow()
         {
             if (IsWindowsSlideshowConfigured())
             {
@@ -193,7 +204,7 @@ namespace DynamicWallpaperRetriever
         /// Removes slideshow presets with a specified name.
         /// </summary>
         /// <param name="name">The identifying name of the slideshow preset.</param>
-        public void RemoveSlideshow(string name)
+        public static void RemoveSlideshow(string name)
         {
             // Remove Windows slideshow, if configured
             if (IsWindowsSlideshowConfigured())
@@ -206,12 +217,12 @@ namespace DynamicWallpaperRetriever
             SlideshowPresets.RemoveWhere(x => toBeRemoved.Contains(x));
         }
 
-        internal bool IsMonitorConfiguredInSlideshow(string monitorID)
+        internal static bool IsMonitorConfiguredInSlideshow(string monitorID)
         {
             return IsMonitorConfiguredInSlideshow( new string[] {monitorID} );
         }
 
-        internal bool IsMonitorConfiguredInSlideshow(IEnumerable<string> monitorIDs)
+        internal static bool IsMonitorConfiguredInSlideshow(IEnumerable<string> monitorIDs)
         {
             if (IsWindowsSlideshowConfigured())
             {
@@ -228,9 +239,10 @@ namespace DynamicWallpaperRetriever
             return true;
         }
 
-        internal bool IsWindowsSlideshowConfigured()
+        internal static bool IsWindowsSlideshowConfigured()
         {
-            if (_wallpaperEngine.GetSlideshowStatus().HasFlag(Win32.DESKTOP_SLIDESHOW_STATE.DSS_SLIDESHOW))
+            if (_wallpaperInterface.GetSlideshowStatus()
+                .HasFlag(IDesktopWallpaperWrapper.Win32.DESKTOP_SLIDESHOW_STATE.DSS_SLIDESHOW))
             {
                 // A Windows slideshow is currently configured
                 return true;
@@ -238,17 +250,17 @@ namespace DynamicWallpaperRetriever
             return false;
         }
 
-        internal void RemoveWindowsSlideshow()
+        internal static void RemoveWindowsSlideshow()
         {
             // Method: fetch image location of every image displayed, then reapply one-by-one
             // on each corresponding monitor
-            string[] activeMonitorIDs = _wallpaperEngine.GetActiveMonitorIDs();
+            string[] activeMonitorIDs = _wallpaperInterface.GetActiveMonitorIDs();
             foreach (string monitorID in activeMonitorIDs)
             {
-                string imagePath = _wallpaperEngine.GetWallpaper(monitorID);
+                string imagePath = _wallpaperInterface.GetWallpaper(monitorID);
                 if (File.Exists(imagePath))
                 {
-                    _wallpaperEngine.SetWallpaper(monitorID, imagePath);
+                    _wallpaperInterface.SetWallpaper(monitorID, imagePath);
                 }
             }
         }
