@@ -14,7 +14,7 @@ namespace DynamicWallpaperRetriever
             Imerg
         }
 
-        #region Wallpaper download and display
+        #region Set wallpaper options
 
         [Verb(name: "set", isDefault: true, HelpText = "Sets the wallpaper to be displayed on specific monitor(s)")]
         public class SetWallpaperOptions
@@ -101,35 +101,38 @@ namespace DynamicWallpaperRetriever
 
         #endregion
 
-        #region Query current wallpapers by monitor
+        #region Query walpaper/slideshow informations
 
         [Verb(name: "get", HelpText = "Obtains current wallpaper (or other settings) and optionally outputs the result in a custom file.")]
-        public class GetWallpaperOptions
+        public class GetOptions
         {
             [Option(shortName: 'w', longName: "wallpaper", SetName = "GetWallpaper",
                 HelpText = "Obtains the current wallpaper (from monitor 0 if no index is specified).")]
             public bool Wallpaper { get; set; }
 
-            [Option(shortName: 'm', longName: "monitorindex", SetName = "GetWallpaper" , Required = false, Default = 0,
-                HelpText = "Specify a specific monitor index for the wallpaper image.")]
+            [Option(shortName: 's', longName: "slideshow", SetName = "GetSlideshow",
+                HelpText = "Gets the folder of the current slideshow. Output is empty if no slideshow is configured.")]
+            public bool Slideshow { get; set; }
+
+            [Option(shortName: 'm', longName: "id", SetName = "GetMonitorID",
+                HelpText = "Obtains the system ID of a specific monitor (from monitor 0 if no index is specified).")]
+            public bool MonitorID { get; set; }
+
+            [Option(shortName: 'i', longName: "monitorindex", Required = false, Default = -1,
+                HelpText = "Specify a specific monitor index for the operation.")]
             public int MonitorIndex { get; set; }
 
             [Option(shortName: 'c', longName: "monitorcount", SetName = "GetMonitorCount",
                 HelpText = "Gets the amount of active monitors.")]
             public bool MonitorCount { get; set; }
 
-            [Option(shortName: 's', longName: "slideshow", SetName = "GetSlideshow",
-                HelpText = "Gets the folder of the current slideshow. Output is empty if no slideshow is configured.")]
-            public bool Slideshow { get; set; }
-
-            [Option(shortName: 'm', longName: "monitorindex", SetName = "GetSlideshow", Required = false, Default = -1,
-                HelpText = "Specify a specific monitor index of the slideshow.")]
-            public int SlideshowMonitorIndex { get; set; }
-
             [Option(shortName: 'o', longName: "outputfile",
                 HelpText = "The path of the file to output results to. Leave empty to output to console.")]
             public string OutputFile { get; set; }
         }
+
+        #endregion
+        #region Slideshow related options
 
         [Verb(name: "slideshow", HelpText = "Options for defining a custom slideshow on select monitors.")]
         public class SlideshowOptions

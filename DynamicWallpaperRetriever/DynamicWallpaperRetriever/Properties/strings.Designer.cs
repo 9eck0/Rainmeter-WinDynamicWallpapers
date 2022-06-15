@@ -19,7 +19,7 @@ namespace DynamicWallpaperRetriever.Properties {
     // class via a tool like ResGen or Visual Studio.
     // To add or remove a member, edit your .ResX file then rerun ResGen
     // with the /str option, or rebuild your VS project.
-    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "16.0.0.0")]
+    [global::System.CodeDom.Compiler.GeneratedCodeAttribute("System.Resources.Tools.StronglyTypedResourceBuilder", "17.0.0.0")]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
     internal class strings {
@@ -61,6 +61,42 @@ namespace DynamicWallpaperRetriever.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to Download cancelled..
+        /// </summary>
+        internal static string DownloadCancelled {
+            get {
+                return ResourceManager.GetString("DownloadCancelled", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Downloading: .
+        /// </summary>
+        internal static string DownloadProgressPrefix {
+            get {
+                return ResourceManager.GetString("DownloadProgressPrefix", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Downloading resource from: .
+        /// </summary>
+        internal static string DownloadStartPrefix {
+            get {
+                return ResourceManager.GetString("DownloadStartPrefix", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Download finished..
+        /// </summary>
+        internal static string DownloadSuccess {
+            get {
+                return ResourceManager.GetString("DownloadSuccess", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to the provided save path is a folder..
         /// </summary>
         internal static string ErrorDownloadFolderPath {
@@ -97,6 +133,42 @@ namespace DynamicWallpaperRetriever.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to no option for GET is found with provided command..
+        /// </summary>
+        internal static string ErrorGetInvalidCommand {
+            get {
+                return ResourceManager.GetString("ErrorGetInvalidCommand", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to no monitor index was provided..
+        /// </summary>
+        internal static string ErrorGetMonitorIndexAbsent {
+            get {
+                return ResourceManager.GetString("ErrorGetMonitorIndexAbsent", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to the provided output file path is incorrect..
+        /// </summary>
+        internal static string ErrorGetOutputFileIncorrect {
+            get {
+                return ResourceManager.GetString("ErrorGetOutputFileIncorrect", resourceCulture);
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized string similar to Cannot output results: .
+        /// </summary>
+        internal static string ErrorGetOutputFilePrefix {
+            get {
+                return ResourceManager.GetString("ErrorGetOutputFilePrefix", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to the provided HTML color code is not formatted correctly (e.g. #FFFFFF)..
         /// </summary>
         internal static string ErrorHtmlColorCodeFormat {
@@ -115,7 +187,7 @@ namespace DynamicWallpaperRetriever.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to  the provided monitor index/ID is incorrect..
+        ///   Looks up a localized string similar to the provided monitor index/ID is incorrect..
         /// </summary>
         internal static string ErrorSetMonitorMalformed {
             get {

@@ -1,6 +1,5 @@
 ﻿using CommandLine;
 using CommandLine.Text;
-using IDesktopWallpaperWrapper;
 using IDesktopWallpaperWrapper.Win32;
 using System;
 using System.Collections.Generic;
@@ -14,8 +13,6 @@ namespace DynamicWallpaperRetriever
 {
     class Program
     {
-
-        static WallpaperEngine wallpaperEngine = new WallpaperEngine();
 
         public static string WorkingDir = Directory.GetCurrentDirectory();
 
@@ -33,7 +30,7 @@ namespace DynamicWallpaperRetriever
             // Apply localization based on current system culture
             Localization.ApplyLocalization(Localization.GetSystemCulture().Name);
 
-            var parseResults = Parser.Default.ParseArguments<CommandLineOptions.GetWallpaperOptions,
+            var parseResults = Parser.Default.ParseArguments<CommandLineOptions.GetOptions,
                     CommandLineOptions.SetWallpaperOptions,
                     CommandLineOptions.SlideshowOptions>(args);
             
@@ -55,7 +52,7 @@ namespace DynamicWallpaperRetriever
                 // Execute command
 
                 parseResults
-                    .WithParsed<CommandLineOptions.GetWallpaperOptions>(options => GetWallpaper(options))
+                    .WithParsed<CommandLineOptions.GetOptions>(options => GetWallpaper(options))
                     .WithParsed<CommandLineOptions.SetWallpaperOptions>(options => SetWallpaper(options))
                     .WithParsed<CommandLineOptions.SlideshowOptions>(options => ManipulateSlideshows(options))
                     .WithNotParsed(errors => FaultyCommand(errors));
@@ -75,16 +72,102 @@ namespace DynamicWallpaperRetriever
         /// </list>
         /// </summary>
         /// <param name="options">Set of command line arguments to be parsed.</param>
-        private static void GetWallpaper(CommandLineOptions.GetWallpaperOptions options)
+        private static void GetWallpaper(CommandLineOptions.GetOptions options)
         {
-            
+            String result;
+
+            string monitorID;
+            if (options.MonitorIndex != -1)
+            {
+                monitorID = WallpaperEngine.GetInterface().GetMonitorDevicePathAt((uint)options.MonitorIndex);
+            }
+            else
+            {
+                monitorID = "";
+            }
+
+            if (options.MonitorCount)
+            {
+                // Monitor count
+                result = WallpaperEngine.GetInterface().GetActiveMonitorIDs().Length.ToString();
+            }
+            else if (options.Slideshow)
+            {
+                // Obtain slideshow folder path
+                if(options.MonitorIndex != -1)
+                {
+                    // Monitor index specified
+                    result = WallpaperEngine.GetSlideshowFromId(monitorID).SlideshowFolder;
+                }
+                else
+                {
+                    // No monitor index => separate all paths using newline
+                    result = String.Join(Environment.NewLine, WallpaperEngine.GetInterface().GetSlideshow());
+                }
+            }
+            else if (options.Wallpaper)
+            {
+                // Obtain wallpaper location
+                if (options.MonitorIndex != -1)
+                {
+                    // Monitor index specified
+                    result = WallpaperEngine.GetInterface().GetWallpaper(monitorID);
+                }
+                else
+                {
+                    // No monitor index => separate all paths using newline
+                    List<string> activeWallpapers = new List<string>();
+                    foreach (String activeMonitorID in WallpaperEngine.GetInterface().GetActiveMonitorIDs())
+                    {
+                        activeWallpapers.Add(WallpaperEngine.GetInterface().GetWallpaper(activeMonitorID));
+                    }
+                    result = String.Join(Environment.NewLine, activeWallpapers);
+                }
+            }
+            else if (options.MonitorID)
+            {
+                if (options.MonitorIndex != -1)
+                {
+                    // Monitor index specified
+                    result = monitorID;
+                }
+                else
+                {
+                    // No monitor index => get all starting from index 0
+                    result = String.Join(Environment.NewLine, WallpaperEngine.GetInterface().GetActiveMonitorIDs());
+                }
+            }
+            else
+            {
+                // Invalid command
+                FaultyCommand(Properties.strings.FaultyCommandErrorPrefix + Properties.strings.ErrorGetInvalidCommand);
+                return;
+            }
+
+            // Finally, outputs to the desired stream
+            if (options.OutputFile == "")
+            {
+                // Output to console
+                Console.Out.WriteLine(result);
+            }
+            else
+            {
+                // Output to specified stream
+                try
+                {
+                    File.AppendAllText(Path.GetFullPath(options.OutputFile), result);
+                }
+                catch (ArgumentException)
+                {
+                    FaultyCommand(Properties.strings.ErrorGetOutputFilePrefix + Properties.strings.ErrorGetOutputFileIncorrect);
+                }
+            }
         }
 
         /// <summary>
         /// Functionalities:
         /// <list type="bullet">
-        /// <item>Set a single wallpaper.</item>
-        /// <item>Specify a single monitor to set the wallpaper onto, using either the index or monitor ID.</item>
+        /// <item>Set a single wallpaper onto all monitors, or specify a monitor using either the index or monitor ID.</item>
         /// <item>Sets the display option of wallpapers.</item>
         /// <item>Sets the background color.</item>
         /// </list>
@@ -151,25 +234,26 @@ namespace DynamicWallpaperRetriever
                 if (int.TryParse(options.Monitor, out int monitorIndex))
                 {
                     // Specified monitor index
-                    wallpaperEngine.SetWallpaper(wallpaperFile.FullName, monitorIndex);
+                    WallpaperEngine.SetWallpaper(wallpaperFile.FullName, monitorIndex);
                 }
                 else if (Array.Exists(
-                        wallpaperEngine.GetEngine().GetActiveMonitorIDs(),
+                        WallpaperEngine.GetInterface().GetActiveMonitorIDs(),
                         x => x.Equals(options.Monitor)
                         ))
                 {
                     // Specified monitor ID
-                    wallpaperEngine.GetEngine().SetWallpaper(options.Monitor, wallpaperFile.FullName);
+                    WallpaperEngine.GetInterface().SetWallpaper(options.Monitor, wallpaperFile.FullName);
                 }
                 else
                 {
                     FaultyCommand(Properties.strings.FaultyCommandErrorPrefix + Properties.strings.ErrorSetMonitorMalformed);
+                    return;
                 }
             }
             else
             {
                 // Apply to all monitors
-                wallpaperEngine.SetWallpaper(wallpaperFile.FullName);
+                WallpaperEngine.SetWallpaper(wallpaperFile.FullName);
             }
             Console.WriteLine("Wallpaper applied");
 
@@ -178,7 +262,7 @@ namespace DynamicWallpaperRetriever
             if (options.Position >= 0 && options.Position <= 5)
             {
                 DESKTOP_WALLPAPER_POSITION wallpaperPositioning = (DESKTOP_WALLPAPER_POSITION) options.Position;
-                wallpaperEngine.GetEngine().SetPosition(wallpaperPositioning);
+                WallpaperEngine.GetInterface().SetPosition(wallpaperPositioning);
             }
 
             // Apply background color
@@ -187,7 +271,7 @@ namespace DynamicWallpaperRetriever
             {
                 try
                 {
-                    wallpaperEngine.SetBackgroundColor(options.BackgroundColor);
+                    WallpaperEngine.SetBackgroundHexColor(options.BackgroundColor);
                 }
                 catch (ArgumentException)
                 {
@@ -244,8 +328,6 @@ namespace DynamicWallpaperRetriever
             return 1;
         }
 
-        private static Uri lastDownloadUri;
-
         private static void DownloadResource(Uri url, string savepath)
         {
             // Setup
@@ -254,8 +336,7 @@ namespace DynamicWallpaperRetriever
             downloader.DownloadCompleted += DownloadClient_DownloadFileFinished;
 
             // Download
-            lastDownloadUri = url;
-            Console.WriteLine("Downloading resource from: {0}", url);
+            Console.WriteLine(Properties.strings.DownloadStartPrefix + url);
             downloader.Download(url, savepath);
         }
 
@@ -263,14 +344,14 @@ namespace DynamicWallpaperRetriever
         {
             string readableBytesReceived = Utils.ToReadableBinaryBytes(e.BytesReceived);
             string readableBytesTotal = Utils.ToReadableBinaryBytes(e.TotalBytesToReceive);
-            Utils.WriteTemporaryLine("Downloading: {0}%, {1}/{2}".PadRight(36, ' '), e.ProgressPercentage, readableBytesReceived, readableBytesTotal);
+            Utils.WriteTemporaryLine(Properties.strings.DownloadProgressPrefix + "{0}%, {1}/{2}".PadRight(16, ' '), e.ProgressPercentage, readableBytesReceived, readableBytesTotal);
         }
 
         static void DownloadClient_DownloadFileFinished(object sender, System.ComponentModel.AsyncCompletedEventArgs e)
         {
             if (e.Cancelled)
             {
-                Console.WriteLine("Download cancelled for resource at: " + lastDownloadUri);
+                Console.WriteLine(Properties.strings.DownloadCancelled);
             }
             else if (e.Error != null)
             {
@@ -280,8 +361,8 @@ namespace DynamicWallpaperRetriever
             }
             else
             {
-                Console.WriteLine("Download finished.".PadRight(36, ' '));
-                wallpaperEngine.GetEngine().SetSlideshow(Environment.CurrentDirectory);
+                Console.WriteLine(Properties.strings.DownloadSuccess.PadRight(36, ' '));
+                //WallpaperEngine.GetInterface().SetSlideshow(Environment.CurrentDirectory);
             }
         }
     }
