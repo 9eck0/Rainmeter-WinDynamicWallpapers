@@ -151,11 +151,15 @@
   </data>
   <data name="ErrorGetInvalidCommand" xml:space="preserve">
     <value>no option for GET is found with provided command.</value>
-    <comment>Shown when no match for GET command is found.</comment>
+    <comment>Shown when no match for entered GET command is found.</comment>
   </data>
   <data name="ErrorGetMonitorIndexAbsent" xml:space="preserve">
     <value>no monitor index was provided.</value>
     <comment>Shown when the required monitor index was not provided.</comment>
+  </data>
+  <data name="ErrorGetMonitorIndexOutOfBounds" xml:space="preserve">
+    <value>provided monitor index is invalid or unobtainable.</value>
+    <comment>Shown when provided an incorrect monitor index.</comment>
   </data>
   <data name="ErrorGetOutputFileIncorrect" xml:space="preserve">
     <value>the provided output file path is incorrect.</value>
@@ -175,7 +179,7 @@
   </data>
   <data name="ErrorSetMonitorMalformed" xml:space="preserve">
     <value>the provided monitor index/ID is incorrect.</value>
-    <comment>Shown when accessing a monitor by its index or ID.</comment>
+    <comment>Shown when accessing a monitor by an incorrect index or ID.</comment>
   </data>
   <data name="FaultyCommandErrorPrefix" xml:space="preserve">
     <value>Invalid command: </value>

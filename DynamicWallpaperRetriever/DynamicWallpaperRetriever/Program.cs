@@ -34,7 +34,7 @@ namespace DynamicWallpaperRetriever
                     CommandLineOptions.SetWallpaperOptions,
                     CommandLineOptions.SlideshowOptions>(args);
             
-            if (args.Length == 0)
+            if (args.Length == 0 || args.Length == 1 && args[0].Trim() == "")
             {
                 // No argument given. Show help
 
@@ -47,7 +47,7 @@ namespace DynamicWallpaperRetriever
 
                 Console.WriteLine(helpText);
             }
-            else if (args.Length > 0)
+            else
             {
                 // Execute command
 
@@ -74,18 +74,31 @@ namespace DynamicWallpaperRetriever
         /// <param name="options">Set of command line arguments to be parsed.</param>
         private static void GetWallpaper(CommandLineOptions.GetOptions options)
         {
+            // Result string to output
             String result;
 
+            bool isMonitorIndexSpecified = options.MonitorIndex >= 0;
+
+            // Obtains monitor ID, if specified
             string monitorID;
-            if (options.MonitorIndex != -1)
+            if (isMonitorIndexSpecified)
             {
-                monitorID = WallpaperEngine.GetInterface().GetMonitorDevicePathAt((uint)options.MonitorIndex);
+                try
+                {
+                    monitorID = WallpaperEngine.GetInterface().GetMonitorDevicePathAt((uint)options.MonitorIndex);
+                }
+                catch (COMException)
+                {
+                    FaultyCommand(Properties.strings.FaultyCommandErrorPrefix + Properties.strings.ErrorGetMonitorIndexOutOfBounds);
+                    return;
+                }
             }
             else
             {
                 monitorID = "";
             }
 
+            // Parse operation
             if (options.MonitorCount)
             {
                 // Monitor count
@@ -94,10 +107,18 @@ namespace DynamicWallpaperRetriever
             else if (options.Slideshow)
             {
                 // Obtain slideshow folder path
-                if(options.MonitorIndex != -1)
+                if(isMonitorIndexSpecified)
                 {
                     // Monitor index specified
-                    result = WallpaperEngine.GetSlideshowFromId(monitorID).SlideshowFolder;
+                    Slideshows.SlideshowPreset preset = WallpaperEngine.GetSlideshowFromId(monitorID);
+                    if (preset != null)
+                    {
+                        result = preset.SlideshowFolder;
+                    }
+                    else
+                    {
+                        result = "";
+                    }
                 }
                 else
                 {
@@ -108,7 +129,7 @@ namespace DynamicWallpaperRetriever
             else if (options.Wallpaper)
             {
                 // Obtain wallpaper location
-                if (options.MonitorIndex != -1)
+                if (isMonitorIndexSpecified)
                 {
                     // Monitor index specified
                     result = WallpaperEngine.GetInterface().GetWallpaper(monitorID);
@@ -126,7 +147,7 @@ namespace DynamicWallpaperRetriever
             }
             else if (options.MonitorID)
             {
-                if (options.MonitorIndex != -1)
+                if (isMonitorIndexSpecified)
                 {
                     // Monitor index specified
                     result = monitorID;
@@ -145,17 +166,17 @@ namespace DynamicWallpaperRetriever
             }
 
             // Finally, outputs to the desired stream
-            if (options.OutputFile == "")
+            if (options.OutputFile == null || options.OutputFile == "")
             {
                 // Output to console
                 Console.Out.WriteLine(result);
             }
             else
             {
-                // Output to specified stream
+                // Output to specified stream, overwriting any existing file
                 try
                 {
-                    File.AppendAllText(Path.GetFullPath(options.OutputFile), result);
+                    File.WriteAllText(Path.GetFullPath(options.OutputFile), result);
                 }
                 catch (ArgumentException)
                 {
@@ -293,6 +314,8 @@ namespace DynamicWallpaperRetriever
 
         private static int FaultyCommand(IEnumerable<Error> errors)
         {
+            Console.Error.WriteLine("There was an error while executing specified task.");
+
             SentenceBuilder errorParser = SentenceBuilder.Create();
             foreach (Error error in errors)
             {
@@ -323,6 +346,7 @@ namespace DynamicWallpaperRetriever
 
         private static int FaultyCommand(String message)
         {
+            Console.Error.WriteLine("There was an error while executing specified task.");
             Console.Error.WriteLine(message);
             
             return 1;

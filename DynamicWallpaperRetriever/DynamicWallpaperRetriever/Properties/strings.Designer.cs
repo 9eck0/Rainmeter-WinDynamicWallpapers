@@ -151,6 +151,15 @@ namespace DynamicWallpaperRetriever.Properties {
         }
         
         /// <summary>
+        ///   Looks up a localized string similar to provided monitor index is invalid or unobtainable..
+        /// </summary>
+        internal static string ErrorGetMonitorIndexOutOfBounds {
+            get {
+                return ResourceManager.GetString("ErrorGetMonitorIndexOutOfBounds", resourceCulture);
+            }
+        }
+        
+        /// <summary>
         ///   Looks up a localized string similar to the provided output file path is incorrect..
         /// </summary>
         internal static string ErrorGetOutputFileIncorrect {

@@ -16,7 +16,7 @@ namespace DynamicWallpaperRetriever
 
         #region Set wallpaper options
 
-        [Verb(name: "set", isDefault: true, HelpText = "Sets the wallpaper to be displayed on specific monitor(s)")]
+        [Verb(name: "set"/*, isDefault: true*/, HelpText = "Sets the wallpaper to be displayed on specific monitor(s)")]
         public class SetWallpaperOptions
         {
 
@@ -114,12 +114,12 @@ namespace DynamicWallpaperRetriever
                 HelpText = "Gets the folder of the current slideshow. Output is empty if no slideshow is configured.")]
             public bool Slideshow { get; set; }
 
-            [Option(shortName: 'm', longName: "id", SetName = "GetMonitorID",
+            [Option(shortName: 'm', longName: "monitorid", SetName = "GetMonitorID",
                 HelpText = "Obtains the system ID of a specific monitor (from monitor 0 if no index is specified).")]
             public bool MonitorID { get; set; }
 
             [Option(shortName: 'i', longName: "monitorindex", Required = false, Default = -1,
-                HelpText = "Specify a specific monitor index for the operation.")]
+                HelpText = "Specify a monitor index for the current operation.")]
             public int MonitorIndex { get; set; }
 
             [Option(shortName: 'c', longName: "monitorcount", SetName = "GetMonitorCount",
